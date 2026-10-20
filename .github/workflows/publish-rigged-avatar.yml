@@ -1,0 +1,89 @@
+name: Publish validated original AI humanoid GLB
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-rigged-avatar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  validate-then-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download original 66-bone rig artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/model
+          gh run download 39377923319 --repo chansiu11/wjddbsghks --name generated-avatar-rigged-review --dir build/model
+          test -s build/model/rigged-review.glb
+      - name: Prepare compact legacy-compatible unmodified rig
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          python scripts/build_rig_compatible.py build/model/rigged-review.glb build/model/ksante-rig-compatible.glb 1024
+          node scripts/validate_glb_adapter.mjs build/model/ksante-rig-compatible.glb
+          python - <<'PY'
+          import struct,json,pathlib
+          p=pathlib.Path("build/model/ksante-rig-compatible.glb")
+          raw=p.read_bytes()
+          n=struct.unpack_from("<I",raw,12)[0]
+          data=json.loads(raw[20:20+n])
+          assert raw[:4]==b"glTF"
+          assert len(data['skins'][0]['joints'])==66
+          assert len(data['meshes'])==1
+          assert data['accessors'][data['meshes'][0]['primitives'][0]['attributes']['POSITION']]['componentType']==5126
+          assert 'KHR_mesh_quantization' not in data.get('extensionsRequired',[])
+          assert 'EXT_texture_webp' not in data.get('extensionsRequired',[])
+          assert all(im['mimeType'] in ('image/png','image/jpeg') for im in data.get('images',[]))
+          print("SAFE GLB",p,"bytes",len(raw),"bake preserved",flush=True)
+          PY
+      - name: Prepare browser
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Wait for camera zoom bug fix to deploy
+        run: |
+          python - <<'PY'
+          import urllib.request,time
+          url="https://chansiu11.github.io/wjddbsghks/assets/index.default-ai.js"
+          for i in range(30):
+              try:
+                  code=urllib.request.urlopen(url,timeout=12).read().decode()
+                  if 'isGenericGLB?Dt.target.z+3.7' in code:
+                      print("Confirmed camera fix deployed",flush=True)
+                      break
+              except Exception as exc:print(str(exc)[:150],flush=True)
+              time.sleep(5)
+          else:raise RuntimeError("Camera correction not deployed")
+          PY
+      - name: Verify real Kalidoface browser and delayed framing
+        run: python scripts/test_unquant_avatar_browser.py build/model/ksante-rig-compatible.glb
+      - name: Replace faulty gltfpack model with stable original rig
+        run: |
+          cp build/model/ksante-rig-compatible.glb assets/models/fan-ksante-ai.glb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/models/fan-ksante-ai.glb
+          git commit -m "Replace distorted AI avatar with correctly skinned original rig, tablet-sized textures" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - name: Save real browser QA and a review model
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corrected-default-ai-avatar-preview
+          path: |
+            build/noquant-avatar-qa/
+            build/model/ksante-rig-compatible.glb
+          retention-days: 4
+          if-no-files-found: warn
