@@ -1,0 +1,53 @@
+name: Optimize generated humanoid for tablets
+on:
+  push:
+    paths:
+      - '.github/workflows/optimize-avatar-glb.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  optimize-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download rigged GLB
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/model
+          gh run download 39377923319 --repo chansiu11/wjddbsghks --name generated-avatar-rigged-review --dir build/model
+          ls -lh build/model/*.glb
+      - name: Validate all humanoid and finger bones
+        run: node scripts/validate_glb_adapter.mjs build/model/rigged-review.glb
+      - name: Reduce triangles for Galaxy Tab without mesh compression
+        run: |
+          npx --yes gltfpack -i build/model/rigged-review.glb -o build/model/tablet-optimized-rigged.glb -si 0.60 -kn -km -ke
+          ls -lh build/model/tablet-optimized-rigged.glb
+      - name: Validate optimized humanoid rig
+        run: |
+          node scripts/validate_glb_adapter.mjs build/model/tablet-optimized-rigged.glb
+          python - <<'PY'
+          import json,struct,pathlib
+          for filename in ["rigged-review.glb", "tablet-optimized-rigged.glb"]:
+              path=pathlib.Path("build/model")/filename
+              b=path.read_bytes()
+              n=struct.unpack_from("<I",b,12)[0]
+              d=json.loads(b[20:20+n])
+              primitive_count=sum(len(m.get("primitives",[])) for m in d.get("meshes",[]))
+              mesh_joints=sum(len(x.get("joints",[])) for x in d.get("skins",[]))
+              print(filename,"bytes",len(b),"skins",len(d.get("skins",[])),"joints",mesh_joints,"mesh primitives",primitive_count)
+          PY
+      - name: Save reduced model for private review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tablet-optimized-rigged-model-review
+          path: |
+            build/model/tablet-optimized-rigged.glb
+          if-no-files-found: warn
+          retention-days: 5
