@@ -24,7 +24,7 @@ async def main():
    r=await route.fetch()
    text=await r.text()
    print("BUNDLE_SIZE",len(text),flush=True)
-   old='z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
+   old='z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
    patched='window.__getAvatarCamera=()=>({position:[jt.position.x,jt.position.y,jt.position.z],target:[Dt.target.x,Dt.target.y,Dt.target.z]}),window.__mountedDefaultAvatar={name:y.name,generic:y.isGenericGLB,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k))},window.__modelRef=y,z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
    if text.count(old)!=1: raise AssertionError(f"hook missing, count={text.count(old)}")
    text=text.replace(old,patched)
@@ -68,6 +68,8 @@ async def main():
   if not (status.get("state") or {}).get("generic"): raise AssertionError("GLB not loaded as default")
   if not all(status["state"]["bones"]): raise AssertionError("Incomplete humanoid mapping")
   if not status.get("camera") or (status["camera"]["position"][2]-status["camera"]["target"][2])<2.5: raise AssertionError("Camera is still too close to avatar")
+  if status.get("head") and all(status.get("feet") or []):
+   if status["head"][1]-sum(x[1] for x in status["feet"])/2 < 0.7:raise AssertionError("Avatar skeleton appears folded or lying down")
   if not any(q["status"]==200 and "fan-ksante-ai.glb" in q["url"] for q in responses):
    raise AssertionError("No HTTP 200 GLB asset")
 if __name__=="__main__":asyncio.run(main())
