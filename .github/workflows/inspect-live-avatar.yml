@@ -1,0 +1,33 @@
+name: Live-site avatar smoke test
+on:
+  push:
+    paths:
+      - '.github/workflows/inspect-live-avatar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Open and inspect deployed Pages
+        run: python scripts/inspect_live_site.py
+      - name: Preserve screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-site-avatar-browser-check
+          path: build/live-site-check/
+          if-no-files-found: warn
+          retention-days: 3
