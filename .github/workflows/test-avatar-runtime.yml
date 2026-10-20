@@ -1,0 +1,44 @@
+name: Local GLB runtime compatibility test
+on:
+  push:
+    paths:
+      - '.github/workflows/test-avatar-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  test-local-model-in-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Chromium and Playwright
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Retrieve PRIVATE review artifact locally
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/model
+          gh run download 39378621626 --repo chansiu11/wjddbsghks --name tablet-optimized-rigged-model-review --dir build/model
+          test -s build/model/tablet-optimized-rigged.glb
+      - name: Exercise avatar import in real browser
+        run: |
+          python scripts/test_avatar_upload_browser.py build/model/tablet-optimized-rigged.glb
+      - name: Preserve debug screenshots and results, not model
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: avatar-browser-runtime-qa
+          path: build/avatar-browser-qa/
+          if-no-files-found: warn
+          retention-days: 3
