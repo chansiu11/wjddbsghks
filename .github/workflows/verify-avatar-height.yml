@@ -1,0 +1,54 @@
+name: Verify K'Sante avatar height on face detection
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-avatar-height.yml'
+      - 'scripts/test_avatar_height_tracking.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-tracking-height:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install headless Chromium and Playwright
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Wait for actual GitHub Pages deployment of height fix
+        run: |
+          python - <<'PY'
+          import urllib.request,time
+          url="https://chansiu11.github.io/wjddbsghks/assets/index.default-ai.js"
+          exact="let h=l.isGenericGLB?l.humanoid.restPose.hips.position[1]:i?u:K.lerp(o.position.y,u,.5+Ke*4)"
+          for attempt in range(35):
+              try:
+                  with urllib.request.urlopen(url,timeout=15) as r:
+                      body=r.read().decode("utf-8")
+                  if exact in body:
+                      print("Confirmed updated flight-fix bundle is live",flush=True)
+                      break
+                  print("Waiting for new deployment",attempt,flush=True)
+              except Exception as e:
+                  print("Site not available yet:",str(e)[:150],flush=True)
+              time.sleep(5)
+          else:
+              raise SystemExit("Actual site has not deployed corrected tracker")
+          PY
+      - name: Verify detected-face pose on desktop and mobile
+        run: python scripts/test_avatar_height_tracking.py
+      - name: Save proof screenshots and numeric measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: avatar-face-height-qa
+          path: build/height-regression/
+          if-no-files-found: warn
+          retention-days: 7
