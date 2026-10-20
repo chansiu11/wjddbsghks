@@ -1,5 +1,5 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
-import { FilesetResolver, PoseLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/vision_bundle.mjs';
+import { FilesetResolver, PoseLandmarker, FaceLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/vision_bundle.mjs';
 
 const $ = s => document.querySelector(s);
 const status = $('#status'), startButton = $('#start'), stopButton = $('#stop');
@@ -23,11 +23,35 @@ const sphere = new THREE.SphereGeometry(.078,10,8);
 const bones = links.map(() => { const mesh = new THREE.Mesh(cylinder, mat); scene.add(mesh); return mesh; });
 const joints = Array.from({length:33},()=>{const mesh=new THREE.Mesh(sphere,jointMat);scene.add(mesh);return mesh;});
 const head = new THREE.Mesh(new THREE.SphereGeometry(.17,16,12), new THREE.MeshStandardMaterial({color:0xaaf8f2,roughness:.54})); scene.add(head);
+const eyeWhite=new THREE.MeshBasicMaterial({color:0xe9faff});
+const eyeDark=new THREE.MeshBasicMaterial({color:0x06243b});
+const mouthMat=new THREE.MeshBasicMaterial({color:0x29172a});
+const eyebrowMat=new THREE.MeshBasicMaterial({color:0x184258});
+function facePart(geometry,material,x,y,z){const m=new THREE.Mesh(geometry,material);m.position.set(x,y,z);head.add(m);return m;}
+const eyes=[-.065,.065].map(x=>facePart(new THREE.SphereGeometry(.032,10,8),eyeWhite,x,.035,.151));
+[-.065,.065].forEach(x=>facePart(new THREE.SphereGeometry(.013,8,6),eyeDark,x,.035,.179));
+const brows=[-.065,.065].map(x=>facePart(new THREE.BoxGeometry(.078,.012,.012),eyebrowMat,x,.094,.148));
+const mouth=facePart(new THREE.SphereGeometry(.06,12,8),mouthMat,0,-.077,.157);
+const smileCorners=[-.06,.06].map(x=>facePart(new THREE.SphereGeometry(.01,8,6),mouthMat,x,-.078,.159));
+const expression={blinkLeft:0,blinkRight:0,jawOpen:0,smile:0,browUp:0};
 const floor = new THREE.GridHelper(4, 16, 0x325678, 0x24324b); floor.position.y=-1.25; scene.add(floor);
 const target=Array.from({length:33},()=>new THREE.Vector3());
 const smooth=Array.from({length:33},()=>new THREE.Vector3());
 const up=new THREE.Vector3(0,1,0), diff=new THREE.Vector3();
-let hasPose=false, task=null, stream=null, running=false, lastVideoTime=-1, lastInference=0, lastRender=performance.now(), fps=0, inferenceMs=0, lastMetric=0;
+let hasPose=false, task=null, faceTask=null, stream=null, running=false, lastVideoTime=-1, lastInference=0, lastFaceInference=0, lastRender=performance.now(), fps=0, inferenceMs=0, lastMetric=0;
+let visiblePoints=Array(33).fill(false), normalizedPoints=null, faceVisible=false;
+const inFrame=p=>p && p.x>=.01 && p.x<=.99 && p.y>=.01 && p.y<=.99;
+function clippedBone(a,b){
+  if(!normalizedPoints || !visiblePoints[a] || !visiblePoints[b]) return null;
+  const A=normalizedPoints[a],B=normalizedPoints[b], dx=B.x-A.x,dy=B.y-A.y;
+  let t0=0,t1=1;
+  for(const [p,q] of [[-dx,A.x],[dx,1-A.x],[-dy,A.y],[dy,1-A.y]]){
+    if(Math.abs(p)<1e-8){if(q<0)return null;continue;}
+    const r=q/p;if(p<0)t0=Math.max(t0,r);else t1=Math.min(t1,r);
+    if(t0>t1)return null;
+  }
+  return [t0,t1];
+}
 const initial={0:[0,.72,0],11:[-.27,.52,0],12:[.27,.52,0],13:[-.44,.21,0],14:[.44,.21,0],15:[-.54,-.03,0],16:[.54,-.03,0],23:[-.17,-.18,0],24:[.17,-.18,0],25:[-.19,-.58,0],26:[.19,-.58,0],27:[-.19,-1,0],28:[.19,-1,0],31:[-.2,-1.09,.12],32:[.2,-1.09,.12]};
 for(const [k,p] of Object.entries(initial)) target[+k].set(...p);
 for(let i=0;i<33;i++) smooth[i].copy(target[i]);
@@ -39,7 +63,10 @@ function draw(now){
  resize();
  for(let i=0;i<33;i++) smooth[i].lerp(target[i],hasPose?.28:.09);
  links.forEach(([a,b],i)=>{
-   const p=smooth[a],q=smooth[b],mesh=bones[i];
+   const range=hasPose?clippedBone(a,b):[0,1],mesh=bones[i];
+   if(!range){mesh.visible=false;return;}
+   const p=smooth[a].clone().lerp(smooth[b],range[0]);
+   const q=smooth[a].clone().lerp(smooth[b],range[1]);
    diff.subVectors(q,p); const length=diff.length();
    mesh.position.copy(p).add(q).multiplyScalar(.5);
    mesh.quaternion.setFromUnitVectors(up,diff.clone().normalize());
@@ -47,8 +74,14 @@ function draw(now){
    mesh.visible=length>.025;
  });
  const visible=new Set(links.flat());
- joints.forEach((m,i)=>{m.visible=visible.has(i);m.position.copy(smooth[i]);});
+ joints.forEach((m,i)=>{m.visible=visible.has(i)&&(!hasPose||(visiblePoints[i]&&inFrame(normalizedPoints?.[i])));m.position.copy(smooth[i]);});
+ head.visible=!hasPose||faceVisible;
  head.position.copy(smooth[0]).add(new THREE.Vector3(0,.16,0));
+ eyes[0].scale.y=Math.max(.1,1-expression.blinkLeft*.9);
+ eyes[1].scale.y=Math.max(.1,1-expression.blinkRight*.9);
+ brows.forEach(b=>b.position.y=.094+expression.browUp*.03);
+ mouth.scale.set(1+expression.smile*.55,Math.max(.13,expression.jawOpen*1.5+.14),1);
+ smileCorners.forEach((m,i)=>{m.position.x=(i?1:-1)*(.06+expression.smile*.025);m.position.y=-.078+expression.smile*.026;});
  renderer.render(scene,camera);
  fps= fps*.9+1000/Math.max(1,now-lastRender)*.1; lastRender=now;
  if(now-lastMetric>800){ metrics.textContent=`화면 ${Math.round(fps)} FPS · 인식 ${Math.round(inferenceMs)} ms`; lastMetric=now; }
@@ -59,10 +92,24 @@ function draw(now){
      const result=task.detectForVideo(video,now);
      inferenceMs=inferenceMs*.7+(performance.now()-t)*.3;
      const points=result.worldLandmarks?.[0];
-     if(points?.length>=33){
-       for(let i=0;i<33;i++){const p=points[i];target[i].set(-p.x*1.9,-p.y*1.9,-p.z*1.9);}
-       hasPose=true;status.textContent='전신 인식 중';
-     } else status.textContent='몸 전체가 카메라에 보이게 해주세요';
+     const imagePoints=result.landmarks?.[0];
+     if(points?.length>=33 && imagePoints?.length>=33){
+       for(let i=0;i<33;i++){const p=points[i];target[i].set(-p.x*1.9,-p.y*1.9,-p.z*1.9);visiblePoints[i]=(imagePoints[i].visibility??1)>.45;}
+       normalizedPoints=imagePoints;hasPose=true;
+       faceVisible=Boolean(inFrame(imagePoints[0])&&visiblePoints[0]);
+       status.textContent='몸·표정 인식 중';
+     } else {hasPose=true;visiblePoints.fill(false);faceVisible=false;status.textContent='카메라에 몸이 보이게 해주세요';}
+     if(faceTask && now-lastFaceInference>=95){
+       lastFaceInference=now;
+       const face=faceTask.detectForVideo(video,now);
+       const categories=face.faceBlendshapes?.[0]?.categories||[];
+       const score=name=>categories.find(c=>c.categoryName===name)?.score||0;
+       const facePoints=face.faceLandmarks?.[0];
+       faceVisible=Boolean(facePoints?.length && inFrame(facePoints[1]) && facePoints[10]?.y>=0);
+       expression.blinkLeft=score('eyeBlinkLeft');expression.blinkRight=score('eyeBlinkRight');
+       expression.jawOpen=score('jawOpen');expression.smile=(score('mouthSmileLeft')+score('mouthSmileRight'))/2;
+       expression.browUp=(score('browInnerUp')+score('browOuterUpLeft')+score('browOuterUpRight'))/3;
+     }
    }catch(e){status.textContent='인식 오류: '+e.message;stop();}
  }
  requestAnimationFrame(draw);
@@ -75,6 +122,12 @@ async function loadModel(){
  try {return await PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:model,delegate:'GPU'},runningMode:'VIDEO',numPoses:1,outputSegmentationMasks:false});}
  catch(e){ console.warn('GPU unavailable; using CPU',e); return PoseLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:model,delegate:'CPU'},runningMode:'VIDEO',numPoses:1,outputSegmentationMasks:false});}
 }
+async function loadFaceModel(){
+ const files=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/wasm');
+ const model='https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task';
+ try{return await FaceLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:model,delegate:'GPU'},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true});}
+ catch(e){console.warn('Face GPU unavailable; using CPU',e);return FaceLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:model,delegate:'CPU'},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true});}
+}
 async function start(){
  startButton.disabled=true;status.textContent='카메라 연결 중…';
  try {
@@ -82,6 +135,7 @@ async function start(){
    video.srcObject=stream;await video.play();
    status.textContent='인식 모델 로딩 중… (첫 실행은 다운로드 필요)';
    task ??= await loadModel();
+   try{faceTask ??= await loadFaceModel();}catch(e){console.warn('Face tracking unavailable',e);status.textContent='표정 모델 로드 실패 · 몸 인식만 사용';}
    running=true;stopButton.hidden=false;startButton.hidden=true;
    status.textContent='전신이 보이게 태블릿을 세워주세요';
  }catch(e){ stop();status.textContent=`시작 실패: ${e.message}`;startButton.disabled=false; }
@@ -91,6 +145,5 @@ startButton.addEventListener('click',start);
 stopButton.addEventListener('click',stop);
 window.addEventListener('pagehide',()=>stream?.getTracks().forEach(t=>t.stop()));
 
-// Open directly into the tracking experience; the button remains a retry path.
-if (navigator.mediaDevices?.getUserMedia) start();
-else status.textContent = '이 브라우저에서 카메라를 사용할 수 없습니다. HTTPS 주소를 확인하세요.';
+if(navigator.mediaDevices?.getUserMedia) start();
+else status.textContent='카메라를 사용할 수 없습니다. HTTPS 주소를 확인하세요.';
