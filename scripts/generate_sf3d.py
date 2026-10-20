@@ -9,22 +9,13 @@ def run():
     ref=prepare()
     client=Client("stabilityai/stable-fast-3d",download_files=True,verbose=True)
     input_image=handle_file(str(ref))
+    # Verified from public Space API: /run_button takes five parameters.
+    # It performs background removal and model generation as one action.
+    print("Calling confirmed 5-argument /run_button endpoint.")
     try:
-        first=client.predict(input_image,0.85,api_name="/requires_bg_remove")
-        print("SF3D preview state:",str(first)[:450])
-    except Exception as ex:
-        print("SF3D image initialisation failed:",ex)
-        raise
-    def make_call(action):
-        return client.predict(action,input_image,None,0.85,"None",-1,1024,api_name="/run_button")
-    try:
-        print("SF3D removing background...")
-        prep=make_call("Remove Background")
-        print("Background result:",str(prep)[:420])
-        print("SF3D starting reconstruction...")
-        out=make_call("Run")
+        out=client.predict(input_image,0.85,"None",-1,1024,api_name="/run_button")
     except Exception as exc:
-        print("SF3D free demo rejected generation:",str(exc)[:1400])
+        print("Anonymous SF3D generation failed:",str(exc)[:1400])
         raise
     source=extract_path(out)
     if not source:
