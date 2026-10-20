@@ -1,0 +1,31 @@
+name: SF3D anonymous fallback character generation
+on:
+  push:
+    paths:
+      - '.github/workflows/ksante-sf3d.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-sf3d:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install anonymous Space client
+        run: python -m pip install --disable-pip-version-check gradio_client pillow numpy requests
+      - name: Try Stable Fast 3D generation without sign-up
+        run: python scripts/generate_sf3d.py
+      - name: Preserve source and generated GLB for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ksante-sf3d-review
+          path: build/ksante-ai/
+          if-no-files-found: warn
+          retention-days: 7
