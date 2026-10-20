@@ -15,7 +15,7 @@ assert kind==b'JSON'
 document=json.loads(b[20:20+json_len])
 bin_offset=20+json_len
 bin_len,kind=struct.unpack_from('<I4s',b,bin_offset)
-assert kind==b'BIN\\0'
+assert kind==b'BIN\0'
 original=b[bin_offset+8:bin_offset+8+bin_len]
 views=document['bufferViews']
 images=document.get('images',[])
@@ -56,7 +56,7 @@ for key in ('extensionsUsed','extensionsRequired'):
 # joint or transform metadata is altered. Each view is 4-byte aligned in new BIN chunk.
 rebuilt=bytearray()
 for i,view in enumerate(views):
-    if len(rebuilt)%4:rebuilt.extend(b'\\0'*(-len(rebuilt)%4))
+    if len(rebuilt)%4:rebuilt.extend(b'\0'*(-len(rebuilt)%4))
     a=view.get('byteOffset',0)
     data=replacement.get(i,original[a:a+view['byteLength']])
     assert len(data)>0
@@ -66,9 +66,9 @@ for i,view in enumerate(views):
 document['buffers'][0]['byteLength']=len(rebuilt)
 payload=json.dumps(document,ensure_ascii=False,separators=(',',':')).encode('utf8')
 payload+=b' '*((-len(payload))%4)
-rebuilt.extend(b'\\0'*(-len(rebuilt)%4))
+rebuilt.extend(b'\0'*(-len(rebuilt)%4))
 total=12+8+len(payload)+8+len(rebuilt)
-out=struct.pack('<4sII',b'glTF',2,total)+struct.pack('<I4s',len(payload),b'JSON')+payload+struct.pack('<I4s',len(rebuilt),b'BIN\\0')+rebuilt
+out=struct.pack('<4sII',b'glTF',2,total)+struct.pack('<I4s',len(payload),b'JSON')+payload+struct.pack('<I4s',len(rebuilt),b'BIN\0')+rebuilt
 dst.parent.mkdir(parents=True,exist_ok=True)
 dst.write_bytes(out)
 verify=json.loads(out[20:20+len(payload)])
