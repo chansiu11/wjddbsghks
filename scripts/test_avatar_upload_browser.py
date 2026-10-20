@@ -48,7 +48,7 @@ async def test():
    assert body.count(old2)==1
    body=body.replace(old2,new2)
    await route.fulfill(response=response,body=body,headers={**response.headers,"cache-control":"no-store"})
-  await page.route("**/assets/index.avatar.js*",patch_bundle)
+  await page.route("**/assets/index.glbcompatible.js*",patch_bundle)
   await page.goto(URL,wait_until="domcontentloaded",timeout=45000)
   await page.wait_for_timeout(7500)
   print("PAGE_TITLE",await page.title(),flush=True)
