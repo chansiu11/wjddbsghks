@@ -25,7 +25,7 @@ async def main():
    text=await r.text()
    print("BUNDLE_SIZE",len(text),flush=True)
    old='z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
-   patched='window.__getAvatarCamera=()=>({position:[jt.position.x,jt.position.y,jt.position.z],target:[Dt.target.x,Dt.target.y,Dt.target.z]}),window.__mountedDefaultAvatar={name:y.name,generic:y.isGenericGLB,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k))},window.__modelRef=y,z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
+   patched='window.__getAvatarCamera=()=>({position:[jt.position.x,jt.position.y,jt.position.z],target:[Dt.target.x,Dt.target.y,Dt.target.z]}),window.__mountedDefaultAvatar={name:y.name,generic:y.isGenericGLB,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k))},window.__modelRef=y,z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
    if text.count(old)!=1: raise AssertionError(f"hook missing, count={text.count(old)}")
    text=text.replace(old,patched)
    old_err='console.error("Character model import failed",err)'
