@@ -28,7 +28,7 @@ jobs:
           python - <<'PY'
           import urllib.request,time
           url="https://chansiu11.github.io/wjddbsghks/assets/index.default-ai.js"
-          exact="let h=l.isGenericGLB?l.humanoid.restPose.hips.position[1]:i?u:K.lerp(o.position.y,u,.5+Ke*4)"
+          exact="if(l.isGenericGLB){const anchor=l.humanoid.restPose.hips.position;o.position.set(anchor[0],anchor[1],anchor[2]);return}"
           for attempt in range(35):
               try:
                   with urllib.request.urlopen(url,timeout=15) as r:
