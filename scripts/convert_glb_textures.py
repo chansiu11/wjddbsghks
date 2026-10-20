@@ -13,7 +13,7 @@ assert jkind==b'JSON'
 d=json.loads(b[20:20+jlen])
 bpos=20+jlen
 binlen,binkind=struct.unpack_from('<I4s',b,bpos)
-assert binkind==b'BIN\\x00'.replace(b'\\x00',b'\x00')
+assert binkind==bytes([66,73,78,0])
 raw=bytearray(b[bpos+8:bpos+8+binlen])
 for idx,entry in enumerate(d.get('images',[])):
     if entry.get('mimeType')!='image/webp':continue
