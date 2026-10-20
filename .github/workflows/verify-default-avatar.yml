@@ -1,0 +1,48 @@
+name: Verify live default avatar
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-default-avatar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live-avatar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Chromium
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Wait for deployed Pages to serve new avatar
+        run: |
+          python - <<'PY'
+          import requests,time
+          url="https://chansiu11.github.io/wjddbsghks/"
+          for i in range(24):
+              try:
+                  html=requests.get(url,timeout=15).text
+                  ok='index.default-ai.js' in html
+                  print("Deployment",i,"new bundle",ok,flush=True)
+                  if ok:break
+              except Exception as e:print("Waiting:",str(e)[:140],flush=True)
+              time.sleep(5)
+          else:raise SystemExit("New default avatar deployment not visible")
+          PY
+      - name: Real browser screenshot and runtime verification
+        run: python scripts/test_default_avatar_live.py
+      - name: Save screenshots and structured results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployed-default-avatar-qa
+          path: build/default-avatar-qa/
+          retention-days: 5
+          if-no-files-found: warn
