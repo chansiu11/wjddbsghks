@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright
 BASE="https://chansiu11.github.io/wjddbsghks/"
 OUT=Path("build/height-regression")
 OUT.mkdir(parents=True,exist_ok=True)
-EXPECTED='let h=l.isGenericGLB?l.humanoid.restPose.hips.position[1]:i?u:K.lerp(o.position.y,u,.5+Ke*4)'
+EXPECTED='if(l.isGenericGLB){const anchor=l.humanoid.restPose.hips.position;o.position.set(anchor[0],anchor[1],anchor[2])}'
 CAMERA_FIX="isGenericGLB?Dt.target.z+3.7"
 
 async def visit(browser,label,width,height):
