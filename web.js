@@ -1,5 +1,5 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
-import { FilesetResolver, PoseLandmarker, FaceLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/vision_bundle.mjs';
+import { FilesetResolver, PoseLandmarker, FaceLandmarker, HandLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/vision_bundle.mjs';
 
 const $ = s => document.querySelector(s);
 const status = $('#status'), startButton = $('#start'), stopButton = $('#stop');
@@ -20,9 +20,25 @@ const mat = new THREE.MeshStandardMaterial({color:0x38dcdf, roughness:.49, metal
 const jointMat = new THREE.MeshStandardMaterial({color:0xf1fdff, roughness:.4});
 const cylinder = new THREE.CylinderGeometry(.055,.065,1,8);
 const sphere = new THREE.SphereGeometry(.078,10,8);
-const bones = links.map(() => { const mesh = new THREE.Mesh(cylinder, mat); scene.add(mesh); return mesh; });
+const skinMat = new THREE.MeshStandardMaterial({color:0xffd5b5,roughness:.82});
+const shirtMat = new THREE.MeshStandardMaterial({color:0x327ac6,roughness:.82});
+const pantsMat = new THREE.MeshStandardMaterial({color:0x233b62,roughness:.85});
+const shoeMat = new THREE.MeshStandardMaterial({color:0xffce5e,roughness:.7});
+const bones = links.map(([a,b]) => {
+ const mesh = new THREE.Mesh(cylinder, b>=31 ? shoeMat : a>=23 ? pantsMat : a>=11 && b<=16 ? (b>=15?skinMat:shirtMat) : mat);
+ scene.add(mesh); return mesh;
+});
+const torso=new THREE.Mesh(new THREE.CylinderGeometry(.27,.19,1,10),shirtMat);scene.add(torso);
+const belt=new THREE.Mesh(new THREE.CylinderGeometry(.2,.19,.075,10),pantsMat);scene.add(belt);
+const handLinks=[ [0,1],[1,2],[2,3],[3,4], [0,5],[5,6],[6,7],[7,8], [0,9],[9,10],[10,11],[11,12], [0,13],[13,14],[14,15],[15,16], [0,17],[17,18],[18,19],[19,20] ];
+const handBoneGeometry=new THREE.CylinderGeometry(.014,.018,1,6);
+const handBoneMeshes=Array.from({length:2},()=>handLinks.map(()=>{const mesh=new THREE.Mesh(handBoneGeometry,skinMat);scene.add(mesh);mesh.visible=false;return mesh;}));
+const handJointGeometry=new THREE.SphereGeometry(.018,7,5);
+const handJointMeshes=Array.from({length:2},()=>Array.from({length:21},()=>{const mesh=new THREE.Mesh(handJointGeometry,skinMat);scene.add(mesh);mesh.visible=false;return mesh;}));
+let handTargets=[null,null],handImagePoints=[null,null];
 const joints = Array.from({length:33},()=>{const mesh=new THREE.Mesh(sphere,jointMat);scene.add(mesh);return mesh;});
-const head = new THREE.Mesh(new THREE.SphereGeometry(.17,16,12), new THREE.MeshStandardMaterial({color:0xaaf8f2,roughness:.54})); scene.add(head);
+const head = new THREE.Mesh(new THREE.SphereGeometry(.17,16,12), skinMat); scene.add(head);
+const hair=new THREE.Mesh(new THREE.SphereGeometry(.174,16,12,0,Math.PI*2,0,Math.PI*.42),new THREE.MeshStandardMaterial({color:0x243154,roughness:.9}));hair.position.y=.025;head.add(hair);
 const eyeWhite=new THREE.MeshBasicMaterial({color:0xe9faff});
 const eyeDark=new THREE.MeshBasicMaterial({color:0x06243b});
 const mouthMat=new THREE.MeshBasicMaterial({color:0x29172a});
@@ -38,7 +54,7 @@ const floor = new THREE.GridHelper(4, 16, 0x325678, 0x24324b); floor.position.y=
 const target=Array.from({length:33},()=>new THREE.Vector3());
 const smooth=Array.from({length:33},()=>new THREE.Vector3());
 const up=new THREE.Vector3(0,1,0), diff=new THREE.Vector3();
-let hasPose=false, task=null, faceTask=null, stream=null, running=false, lastVideoTime=-1, lastInference=0, lastFaceInference=0, lastRender=performance.now(), fps=0, inferenceMs=0, lastMetric=0;
+let hasPose=false, task=null, faceTask=null, handTask=null, stream=null, running=false, lastVideoTime=-1, lastInference=0, lastFaceInference=0, lastHandInference=0, lastRender=performance.now(), fps=0, inferenceMs=0, lastMetric=0;
 let visiblePoints=Array(33).fill(false), normalizedPoints=null, faceVisible=false;
 const inFrame=p=>p && p.x>=.01 && p.x<=.99 && p.y>=.01 && p.y<=.99;
 function clippedBone(a,b){
@@ -77,6 +93,24 @@ function draw(now){
  joints.forEach((m,i)=>{m.visible=visible.has(i)&&(!hasPose||(visiblePoints[i]&&inFrame(normalizedPoints?.[i])));m.position.copy(smooth[i]);});
  head.visible=!hasPose||faceVisible;
  head.position.copy(smooth[0]).add(new THREE.Vector3(0,.16,0));
+ const shoulders=smooth[11].clone().add(smooth[12]).multiplyScalar(.5);
+ const hips=smooth[23].clone().add(smooth[24]).multiplyScalar(.5);
+ diff.subVectors(shoulders,hips);torso.position.copy(shoulders).add(hips).multiplyScalar(.5);
+ torso.quaternion.setFromUnitVectors(up,diff.clone().normalize());torso.scale.set(1,Math.max(.1,diff.length()),1);
+ torso.visible=!hasPose||(visiblePoints[11]&&visiblePoints[12]&&visiblePoints[23]&&visiblePoints[24]&&[11,12,23,24].every(i=>inFrame(normalizedPoints?.[i])));
+ belt.position.copy(hips);belt.visible=torso.visible;
+ for(let side=0;side<2;side++){
+   const points=handTargets[side],pixels=handImagePoints[side],wrist=side?16:15;
+   const visibleHand=points && pixels && (!hasPose||visiblePoints[wrist]) && inFrame(normalizedPoints?.[wrist]);
+   handLinks.forEach(([a,b],i)=>{
+     const mesh=handBoneMeshes[side][i];mesh.visible=Boolean(visibleHand && inFrame(pixels[a]) && inFrame(pixels[b]));
+     if(!mesh.visible)return;
+     const va=points[a].clone().add(smooth[wrist]),vb=points[b].clone().add(smooth[wrist]);
+     diff.subVectors(vb,va);mesh.position.copy(va).add(vb).multiplyScalar(.5);
+     mesh.quaternion.setFromUnitVectors(up,diff.clone().normalize());mesh.scale.y=Math.max(.001,diff.length());
+   });
+   handJointMeshes[side].forEach((mesh,i)=>{mesh.visible=Boolean(visibleHand&&inFrame(pixels[i]));if(mesh.visible)mesh.position.copy(points[i]).add(smooth[wrist]);});
+ }
  eyes[0].scale.y=Math.max(.1,1-expression.blinkLeft*.9);
  eyes[1].scale.y=Math.max(.1,1-expression.blinkRight*.9);
  brows.forEach(b=>b.position.y=.094+expression.browUp*.03);
@@ -99,7 +133,7 @@ function draw(now){
        faceVisible=Boolean(inFrame(imagePoints[0])&&visiblePoints[0]);
        status.textContent='몸·표정 인식 중';
      } else {hasPose=true;visiblePoints.fill(false);faceVisible=false;status.textContent='카메라에 몸이 보이게 해주세요';}
-     if(faceTask && now-lastFaceInference>=95){
+     if(faceTask && now-lastFaceInference>=Math.max(110,inferenceMs*3)){
        lastFaceInference=now;
        const face=faceTask.detectForVideo(video,now);
        const categories=face.faceBlendshapes?.[0]?.categories||[];
@@ -109,6 +143,23 @@ function draw(now){
        expression.blinkLeft=score('eyeBlinkLeft');expression.blinkRight=score('eyeBlinkRight');
        expression.jawOpen=score('jawOpen');expression.smile=(score('mouthSmileLeft')+score('mouthSmileRight'))/2;
        expression.browUp=(score('browInnerUp')+score('browOuterUpLeft')+score('browOuterUpRight'))/3;
+     }
+     if(handTask && now-lastHandInference>=Math.max(90,inferenceMs*2.5) && (!faceTask || now-lastFaceInference<85)){
+       lastHandInference=now;
+       const hands=handTask.detectForVideo(video,now);
+       handTargets=[null,null];handImagePoints=[null,null];
+       for(let h=0;h<(hands.landmarks?.length||0);h++){
+         const pixels=hands.landmarks[h],world=hands.worldLandmarks?.[h];
+         if(!world||!pixels?.length)continue;
+         const l=normalizedPoints?.[15],r=normalizedPoints?.[16];
+         const dL=l?Math.hypot(pixels[0].x-l.x,pixels[0].y-l.y):Infinity;
+         const dR=r?Math.hypot(pixels[0].x-r.x,pixels[0].y-r.y):Infinity;
+         const side=dL<=dR?0:1;
+         if(Math.min(dL,dR)>.3 || handTargets[side])continue;
+         const origin=world[0];
+         handTargets[side]=world.map(p=>new THREE.Vector3(-(p.x-origin.x)*1.9,-(p.y-origin.y)*1.9,-(p.z-origin.z)*1.9));
+         handImagePoints[side]=pixels;
+       }
      }
    }catch(e){status.textContent='인식 오류: '+e.message;stop();}
  }
@@ -128,6 +179,12 @@ async function loadFaceModel(){
  try{return await FaceLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:model,delegate:'GPU'},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true});}
  catch(e){console.warn('Face GPU unavailable; using CPU',e);return FaceLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:model,delegate:'CPU'},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true});}
 }
+async function loadHandModel(){
+ const files=await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.20/wasm');
+ const model='https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task';
+ try{return await HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:model,delegate:'GPU'},runningMode:'VIDEO',numHands:2});}
+ catch(e){console.warn('Hand GPU unavailable; using CPU',e);return HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetPath:model,delegate:'CPU'},runningMode:'VIDEO',numHands:2});}
+}
 async function start(){
  startButton.disabled=true;status.textContent='카메라 연결 중…';
  try {
@@ -136,6 +193,7 @@ async function start(){
    status.textContent='인식 모델 로딩 중… (첫 실행은 다운로드 필요)';
    task ??= await loadModel();
    try{faceTask ??= await loadFaceModel();}catch(e){console.warn('Face tracking unavailable',e);status.textContent='표정 모델 로드 실패 · 몸 인식만 사용';}
+   try{handTask ??= await loadHandModel();}catch(e){console.warn('Hand tracking unavailable',e);status.textContent='손 모델 로드 실패 · 몸·표정 인식 사용';}
    running=true;stopButton.hidden=false;startButton.hidden=true;
    status.textContent='전신이 보이게 태블릿을 세워주세요';
  }catch(e){ stop();status.textContent=`시작 실패: ${e.message}`;startButton.disabled=false; }
