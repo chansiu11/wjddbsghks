@@ -40,7 +40,7 @@ async def test():
    body=await response.text()
    print("BUNDLE_ORIGINAL_SIZE",len(body),flush=True)
    old="z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)"
-   new='window.__glbLoaded=y.isGenericGLB===true?{name:y.name,rig:true,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k)),meshes:y.scene.children.length,fit:y.scene.userData?.genericAvatarFit||null}:window.__glbLoaded,z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
+   new='window.__glbLoaded=y.isGenericGLB===true?(window.__testGLBModel=y,window.__getCameraState=()=>({camera:[jt.position.x,jt.position.y,jt.position.z],target:[Dt.target.x,Dt.target.y,Dt.target.z],modelWorld:[y.scene.position.x,y.scene.position.y,y.scene.position.z]}),{name:y.name,rig:true,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k)),meshes:y.scene.children.length,fit:y.scene.userData?.genericAvatarFit||null}):window.__glbLoaded,z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
    assert body.count(old)==1,("Model-ready hook not found",body.count(old))
    body=body.replace(old,new)
    old2='console.error("Character model import failed",err)'
@@ -72,7 +72,21 @@ async def test():
    if state["loaded"] or state["error"]:break
   await page.screenshot(path=str(OUT/"after-upload.png"),full_page=True,timeout=20000)
   final=await page.evaluate("({loaded:window.__glbLoaded||null,error:window.__glbFailure||null,canvasCount:document.querySelectorAll('canvas').length})")
+  model_coordinates=await page.evaluate("""()=>{
+    const y=window.__testGLBModel;
+    if(!y)return null;
+    const bone=name=>{
+      const b=y.humanoid.getBoneNode(name);
+      if(!b)return null;
+      const v=b.position.clone();b.getWorldPosition(v);
+      return [v.x,v.y,v.z];
+    };
+    return {camera:window.__getCameraState?.(),hips:bone("Hips"),head:bone("Head"),
+      leftFoot:bone("LeftFoot"),rightFoot:bone("RightFoot"),scale:y.scene.scale.x};
+  }""")
+  print("MODEL_COORDINATES",json.dumps(model_coordinates,ensure_ascii=False),flush=True)
   (OUT/"results.json").write_text(json.dumps({
+    "coordinates":model_coordinates,
     "status":final,
     "pageerrors":js_errors[-30:],
     "console":js_logs[-35:],
