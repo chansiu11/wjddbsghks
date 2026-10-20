@@ -27,7 +27,7 @@ async def main():
    text=await r.text()
    print("BUNDLE_SIZE",len(text),flush=True)
    old='z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
-   patched='window.__getAvatarCamera=()=>({position:[jt.position.x,jt.position.y,jt.position.z],target:[Dt.target.x,Dt.target.y,Dt.target.z]}),window.__mountedDefaultAvatar={name:y.name,generic:y.isGenericGLB,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k))},window.__modelRef=y,z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
+   patched='window.__getAvatarCamera=()=>{const active=E(Qn);for(const c of [jt,It,active])c?.updateMatrixWorld?.(true);const props=c=>c?({name:c===jt?"main":c===It?"firstperson":"unknown",position:[c.position.x,c.position.y,c.position.z],world:Array.from(c.matrixWorld.elements).slice(12,15),fov:c.fov,zoom:c.zoom,aspect:c.aspect,near:c.near,far:c.far,forward:[-c.matrixWorld.elements[8],-c.matrixWorld.elements[9],-c.matrixWorld.elements[10]]}):null;return {position:[jt.position.x,jt.position.y,jt.position.z],target:[Dt.target.x,Dt.target.y,Dt.target.z],active:props(active),main:props(jt),first:props(It),mode:E(Ie)};},window.__mountedDefaultAvatar={name:y.name,generic:y.isGenericGLB,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k))},window.__modelRef=y,z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
    if text.count(old)!=1: raise AssertionError(f"hook missing, count={text.count(old)}")
    text=text.replace(old,patched)
    old_err='console.error("Character model import failed",err)'
@@ -91,6 +91,8 @@ async def main():
    if status.get("state") and status["state"]["generic"]: break
   await page.wait_for_timeout(3500)
   await page.screenshot(path=str(OUT/"default-avatar-live.png"),full_page=True,timeout=25000)
+  extra=await page.evaluate("""()=>window.__getAvatarCamera?.()||null""")
+  print("ACTIVE_CAMERA_POST_SCREENSHOT",json.dumps(extra),flush=True)
   report={"status":status,"requests":requests,"responses":responses,"pageerrors":errors[-12:],"console":console[-15:]}
   (OUT/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
   print("REPORT",json.dumps(report,ensure_ascii=False),flush=True)
