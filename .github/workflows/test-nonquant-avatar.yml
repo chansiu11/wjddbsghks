@@ -1,0 +1,63 @@
+name: Trial non-quantized humanoid render
+on:
+  push:
+    paths:
+      - '.github/workflows/test-nonquant-avatar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test-nonquant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Retrieve original float-position rigged mesh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/noquant
+          gh run download 39377923319 --repo chansiu11/wjddbsghks --name generated-avatar-rigged-review --dir build/noquant
+          ls -lh build/noquant/rigged-review.glb
+      - name: Simplify geometry WITHOUT mesh quantization
+        run: |
+          npx -y gltfpack -i build/noquant/rigged-review.glb -o build/noquant/noquant-webp.glb -si 0.60 -kn -km -ke -noq
+      - name: Convert WebP textures into legacy GLTFLoader-compatible format
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          python scripts/convert_glb_textures.py build/noquant/noquant-webp.glb build/noquant/noquant-compatible.glb
+          python - <<'PY'
+          import json,struct,pathlib
+          p=pathlib.Path("build/noquant/noquant-compatible.glb"); b=p.read_bytes()
+          n=struct.unpack_from("<I",b,12)[0]; j=json.loads(b[20:20+n])
+          attrs=j['meshes'][0]['primitives'][0]['attributes']
+          accessor=j['accessors'][attrs['POSITION']]
+          print("GLB_SIZE",len(b),"POSITION_COMPONENT_TYPE",accessor['componentType'],"JOINTS",len(j['skins'][0]['joints']))
+          assert accessor['componentType']==5126, "Positions are still quantized!"
+          assert len(j['skins'][0]['joints'])==66
+          assert 'KHR_mesh_quantization' not in j.get('extensionsRequired',[])
+          assert 'EXT_texture_webp' not in j.get('extensionsRequired',[])
+          PY
+          node scripts/validate_glb_adapter.mjs build/noquant/noquant-compatible.glb
+      - name: Install headless browser
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Run real rendered preview with non-quantized GLB
+        run: python scripts/test_unquant_avatar_browser.py build/noquant/noquant-compatible.glb
+      - name: Save image and 3D file for quality review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noquant-avatar-render-review
+          path: |
+            build/noquant/noquant-compatible.glb
+            build/noquant-avatar-qa/
+          retention-days: 5
+          if-no-files-found: warn
