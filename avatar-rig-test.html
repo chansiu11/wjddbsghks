@@ -1,0 +1,32 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GLB Avatar Rig Preview</title><style>body{margin:0;background:#16161d;color:#fff;font:15px system-ui}header{padding:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}#viewport{height:calc(100vh - 150px)}button,input{font:inherit}#status{padding:10px 14px;color:#bce0ff}a{color:#9fd6ff}</style></head><body><header><strong>3D 리깅 테스트</strong><input id="file" type="file" accept=".glb,model/gltf-binary"><button id="test">뼈대 동작 테스트</button><a href="./index.html">메인으로</a></header><div id="viewport"></div><div id="status">리깅된 GLB 파일을 선택하세요. 모델 파일은 서버에 업로드되지 않습니다.</div><script type="module">
+import {createGenericGLBAvatar} from "./assets/glb-avatar-adapter.js";
+import * as THREE from "https://esm.sh/three@0.160.1";
+import {GLTFLoader} from "https://esm.sh/three@0.160.1/examples/jsm/loaders/GLTFLoader.js";
+const view=document.getElementById("viewport"),status=document.getElementById("status");
+const scene=new THREE.Scene();scene.background=new THREE.Color("#242936");
+const camera=new THREE.PerspectiveCamera(35,1,.01,100);camera.position.set(0,1.1,4.4);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));view.append(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x555c75,2.2));
+const light=new THREE.DirectionalLight(0xffffff,2.4);light.position.set(2,5,4);scene.add(light);
+const floor=new THREE.GridHelper(8,16,0x808090,0x424554);scene.add(floor);
+let avatar=null,phase=0,testing=false;
+function resize(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix()}window.addEventListener("resize",resize);resize();
+document.getElementById("file").addEventListener("change",async e=>{
+ const file=e.target.files[0];if(!file)return;
+ const url=URL.createObjectURL(file);
+ status.textContent="불러오는 중…";
+ try{
+  const gltf=await new GLTFLoader().loadAsync(url);
+  const next=createGenericGLBAvatar(gltf,file.name);
+  if(avatar){scene.remove(avatar.scene);avatar.dispose()}
+  avatar=next;scene.add(avatar.scene);
+  const needed=["Hips","Head","LeftUpperArm","RightUpperArm","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"];
+  const missing=needed.filter(x=>!avatar.humanoid.getBoneNode(x));
+  status.textContent=missing.length?"일부 관절 없음: "+missing.join(", "):"GLB 로드 성공 · 머리/몸통/양팔/손가락 관절 확인 · 동작 테스트를 눌러 보세요";
+ }catch(err){console.error(err);status.textContent="GLB 로드 실패: "+err.message}
+ finally{URL.revokeObjectURL(url)}
+});
+document.getElementById("test").onclick=()=>{if(!avatar)return;testing=!testing;document.getElementById("test").textContent=testing?"동작 정지":"뼈대 동작 테스트"};
+function frame(){requestAnimationFrame(frame);if(avatar&&testing){phase+=.018;for(const [name,angle] of [["LeftUpperArm",.25],["RightUpperArm",-.25],["Head",.12],["LeftIndexProximal",.25],["RightIndexProximal",.25]]){const bone=avatar.humanoid.getBoneNode(name);if(!bone)continue;const rest=bone.userData.genericRestQuaternion;if(rest){bone.quaternion.copy(rest);bone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),Math.sin(phase)*angle))}}}renderer.render(scene,camera)}frame();
+</script></body></html>
