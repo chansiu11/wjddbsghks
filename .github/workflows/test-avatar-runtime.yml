@@ -1,5 +1,5 @@
 name: Local GLB runtime compatibility test
-# QA: validate visible auto-fitted 1.7m generated GLB, deployed adapter.
+# QA: record camera versus humanoid positions to diagnose framing.
 on:
   push:
     paths:
