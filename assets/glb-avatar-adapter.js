@@ -15,25 +15,25 @@ const aliases = {
   Head:["head","head1"],
 };
 for (const side of ["Left","Right"]) {
-  const s=side.toLowerCase(), short=s[0];
+  const s=side.toLowerCase(), short=s[0]; // Supports Mixamo and afk-rig ("_l" / "_r") suffix naming.
   Object.assign(aliases, {
-    [side+"Shoulder"]:[s+"shoulder",s+"clavicle",short+"clavicle"],
-    [side+"UpperArm"]:[s+"upperarm",s+"arm",s+"uparm",short+"upperarm",short+"arm"],
-    [side+"LowerArm"]:[s+"lowerarm",s+"forearm",s+"elbow",short+"forearm",short+"lowerarm"],
-    [side+"Hand"]:[s+"hand",s+"wrist",short+"hand"],
-    [side+"UpperLeg"]:[s+"upperleg",s+"upleg",s+"thigh",short+"thigh",short+"upperleg"],
-    [side+"LowerLeg"]:[s+"lowerleg",s+"leg",s+"calf",s+"shin",short+"calf"],
-    [side+"Foot"]:[s+"foot",s+"ankle",short+"foot"],
-    [side+"Toes"]:[s+"toe",s+"toebase",short+"toe"],
+    [side+"Shoulder"]:[s+"shoulder",s+"clavicle",short+"clavicle","clavicle"+short],
+    [side+"UpperArm"]:[s+"upperarm",s+"arm",s+"uparm",short+"upperarm",short+"arm","upperarm"+short,"arm"+short],
+    [side+"LowerArm"]:[s+"lowerarm",s+"forearm",s+"elbow",short+"forearm",short+"lowerarm","lowerarm"+short,"forearm"+short],
+    [side+"Hand"]:[s+"hand",s+"wrist",short+"hand","hand"+short],
+    [side+"UpperLeg"]:[s+"upperleg",s+"upleg",s+"thigh",short+"thigh",short+"upperleg","thigh"+short],
+    [side+"LowerLeg"]:[s+"lowerleg",s+"leg",s+"calf",s+"shin",short+"calf","calf"+short,"shin"+short],
+    [side+"Foot"]:[s+"foot",s+"ankle",short+"foot","foot"+short],
+    [side+"Toes"]:[s+"toe",s+"toebase",short+"toe","ball"+short],
   });
   for(const digit of ["Thumb","Index","Middle","Ring","Little"]) {
     const id=digit.toLowerCase();
     for(const [part,number] of [["Proximal","1"],["Intermediate","2"],["Distal","3"]]) {
       aliases[side+digit+part] = [
-        s+id+part.toLowerCase(),s+"hand"+id+number,s+id+number,
+        s+id+part.toLowerCase(),s+"hand"+id+number,s+id+number,id+"0"+number+short,id+number+short,
         short+id+number,s+"hand"+id+part.toLowerCase()
       ];
-      if(digit==="Little") aliases[side+digit+part].push(s+"pinky"+number,s+"handpinky"+number);
+      if(digit==="Little") aliases[side+digit+part].push(s+"pinky"+number,s+"handpinky"+number,"pinky0"+number+short,"pinky"+number+short);
     }
   }
 }
