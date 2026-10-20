@@ -6,6 +6,7 @@ Changes for this GitHub Pages deployment:
 - Set the Vite output's relative links to work under `/wjddbsghks/` and remove the upstream analytics tag.
 - Set webcam capture to a maximum of 30 FPS and throttle tracking to 30 processed frames per second.
 - Use the lighter holistic model setting (`modelComplexity: 0`) to reduce processing delay on tablets.
+- Send remote avatar pose updates at 20 Hz instead of 10 Hz, lowering the update interval from 100 ms to 50 ms when the connection keeps up.
 - Cache the same-origin application bundles for faster repeat visits. Models and backgrounds remain on their original hosts.
 
 Tracking runs locally on the device. WebRTC call latency depends on the participants' network paths and cannot be guaranteed by a static GitHub Pages deployment. Video/voice calling uses the original app's PeerJS infrastructure, not a new server operated by this repository.
