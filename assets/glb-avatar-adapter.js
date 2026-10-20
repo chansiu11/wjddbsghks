@@ -77,6 +77,37 @@ export function createGenericGLBAvatar(gltf, filename="Character.glb") {
   if(missing.length)throw Error("GLB 사람형 뼈대가 부족합니다: "+missing.join(", ")+". Blender에서 뼈대 이름을 설정하거나 VRM으로 변환하세요.");
   const hip=map.hips, head=map.head||map.neck||hip;
   scene.updateMatrixWorld(true);
+  // AI mesh generators usually export a tiny, ground-centered object rather
+  // than a VRM-sized human. Fit to ~1.7m and raise the soles above the floor.
+  let bottom=Infinity,top=-Infinity;
+  scene.traverse(node=>{
+    if(!node.isMesh||!node.geometry||!node.matrixWorld)return;
+    const geometry=node.geometry;
+    if(!geometry.boundingBox) geometry.computeBoundingBox?.();
+    const box=geometry.boundingBox?.clone();
+    if(!box)return;
+    box.applyMatrix4(node.matrixWorld);
+    bottom=Math.min(bottom,box.min.y);
+    top=Math.max(top,box.max.y);
+  });
+  const height=top-bottom;
+  if(Number.isFinite(height) && height>0.02 && scene.scale && scene.position){
+    const scale=Math.max(0.05,Math.min(30,1.7/height));
+    scene.scale.multiplyScalar(scale);
+    scene.updateMatrixWorld(true);
+    let raisedBottom=Infinity;
+    scene.traverse(node=>{
+      if(!node.isMesh||!node.geometry?.boundingBox||!node.matrixWorld)return;
+      const box=node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld);
+      raisedBottom=Math.min(raisedBottom,box.min.y);
+    });
+    if(Number.isFinite(raisedBottom)){
+      scene.position.y+=0.025-raisedBottom;
+      scene.updateMatrixWorld(true);
+    }
+    scene.userData=scene.userData||{};
+    scene.userData.genericAvatarFit={originalHeight:height,scale};
+  }
   const expressions={};
   for(const mesh of morphMeshes){
     for(const [key,index] of Object.entries(mesh.morphTargetDictionary)){
