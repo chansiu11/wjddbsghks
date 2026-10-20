@@ -1,12 +1,11 @@
-# Motion Studio — web VTuber
+# Kalidoface 3D — performance-tuned rehost
 
-Camera-based 3D avatar studio designed for phones and tablets. Open the GitHub Pages URL, allow camera access, and use the toolbar to change the avatar or background.
+This is a rehost of the public [Kalidoface 3D](https://github.com/yeemachine/kalidoface-3d) built website, with its original UI and functionality. The original project's README and license notices are preserved in `UPSTREAM_README.md` and `LICENSE`. Model and artwork credits and any model-specific terms remain with their creators; external files are loaded from the original URLs.
 
-- Facial expressions, head movement, pose, and fingers use MediaPipe Tasks Vision. Processing runs in the browser.
-- Includes an original procedural 3D character and supports locally uploaded VRM avatars via three-vrm.
-- Supports custom backgrounds, chroma colors, a camera preview, screenshot download, orbit, zoom, and fullscreen.
-- All files from the previous Android prototype have been removed from the active branch.
+Changes for this GitHub Pages deployment:
+- Set the Vite output's relative links to work under `/wjddbsghks/` and remove the upstream analytics tag.
+- Set webcam capture to a maximum of 30 FPS and throttle tracking to 30 processed frames per second.
+- Use the lighter holistic model setting (`modelComplexity: 0`) to reduce processing delay on tablets.
+- Cache the same-origin application bundles for faster repeat visits. Models and backgrounds remain on their original hosts.
 
-The app loads Three.js, three-vrm, MediaPipe, and tracking model weights from CDNs on first use. A camera requires HTTPS. Imported VRM files stay in browser memory for the current visit; the app does not upload them to a server.
-
-This project is an original implementation inspired by the publicly documented capabilities of Kalidoface 3D. It does not include Kalidoface branding, code, or sample models.
+Tracking runs locally on the device. WebRTC call latency depends on the participants' network paths and cannot be guaranteed by a static GitHub Pages deployment. Video/voice calling uses the original app's PeerJS infrastructure, not a new server operated by this repository.

@@ -1,8 +1,212 @@
-<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#14121d"><title>모션 스튜디오 · 웹 버튜버</title><link rel="stylesheet" href="style.css">
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/","@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.1.3/lib/three-vrm.module.js"}}</script></head>
-<body><main id="app"><canvas id="scene" aria-label="3D 버튜버 아바타"></canvas><div class="stage-overlay"></div><header class="topbar"><div class="brand"><span class="brand-icon">✦</span><span>MOTION<span class="light">STUDIO</span><small>WEB VTUBER</small></span></div><div class="top-actions"><span id="trackingPill" class="pill"><i></i> 대기 중</span><button id="settingsBtn" class="iconbtn" aria-label="설정 열기" title="설정">⚙</button></div></header>
-<div class="hero-label"><span class="eyebrow">YOUR STAGE, YOUR AVATAR</span><h1>움직이는 순간,<br><em>캐릭터가 됩니다.</em></h1><p>카메라 한 대로 얼굴, 몸, 손의 움직임을 3D 아바타에 담아보세요.</p><button id="startBtn" class="primary">◉ &nbsp; 카메라 시작하기</button></div>
-<div id="cameraBox" class="camera-box" hidden><video id="camera" autoplay muted playsinline></video><span>● LIVE CAMERA</span><button id="hideCamera" aria-label="카메라 미리보기 숨기기">×</button></div>
-<div class="bottombar"><div class="status-wrap"><span class="live-dot"></span><span id="status">카메라를 시작해 주세요</span><small id="metrics">—</small></div><div class="tools"><button id="modelBtn" title="VRM 모델 업로드">♙ <span>아바타</span></button><button id="backgroundBtn" title="배경 선택">▧ <span>배경</span></button><button id="cameraBtn" title="카메라 미리보기">▣ <span>카메라</span></button><button id="shotBtn" title="스냅샷 저장">◎ <span>사진</span></button><button id="fullBtn" title="전체 화면">⛶ <span>전체 화면</span></button></div></div>
-<aside id="panel" class="panel" aria-label="설정" aria-hidden="true"><div class="panel-head"><div><span class="eyebrow">CUSTOMIZE</span><h2>스튜디오 설정</h2></div><button id="closePanel" class="iconbtn" aria-label="설정 닫기">×</button></div><div class="section"><h3>아바타</h3><p>기본 캐릭터 또는 내 VRM 모델을 사용하세요.</p><button id="defaultModel" class="choice selected">✦ 기본 캐릭터</button><button id="uploadModel" class="choice">＋ VRM 모델 불러오기</button><span id="modelName" class="subtle">선택한 모델: 기본 캐릭터</span></div><div class="section"><h3>배경</h3><div class="swatches"><button class="swatch active" data-bg="studio" style="--swatch:#2d2440" aria-label="스튜디오"></button><button class="swatch" data-bg="pink" style="--swatch:#b97499" aria-label="핑크"></button><button class="swatch" data-bg="green" style="--swatch:#00b34e" aria-label="크로마키 초록"></button><button class="swatch" data-bg="blue" style="--swatch:#1665df" aria-label="파랑"></button><button class="swatch" data-bg="transparent" style="--swatch:conic-gradient(#ddd 25%,#777 0 50%,#ddd 0 75%,#777 0) 0 0 / 12px 12px" aria-label="투명"></button></div><button id="uploadBg" class="choice">＋ 내 이미지 배경</button></div><div class="section"><h3>트래킹</h3><label class="toggle-row">전신 추적 <input type="checkbox" id="poseToggle" checked><span></span></label><label class="toggle-row">손가락 추적 <input type="checkbox" id="handToggle" checked><span></span></label><label class="toggle-row">카메라 좌우 반전 <input type="checkbox" id="mirrorToggle" checked><span></span></label></div><div class="section"><h3>화면</h3><label class="range-row">아바타 크기 <input id="zoom" type="range" min="2.5" max="6" step=".1" value="4.4"></label><p class="subtle">손가락으로 화면을 드래그하면 시점을 돌릴 수 있습니다.</p></div><button id="stopBtn" class="stop" hidden>카메라 중지</button><p class="footnote">영상은 기기에서 처리됩니다. 첫 실행 시 인식 모델을 다운로드합니다.</p></aside><div id="shade" class="shade" hidden></div><input id="modelFile" type="file" accept=".vrm" hidden><input id="bgFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden><div id="toast" role="status" class="toast" hidden></div></main><script type="module" src="app.js?v=5"></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- HTML Meta Tags -->
+    <title>Kalidoface 3D - Face & Full Body Tracking</title>
+    <meta
+      name="description"
+      content="Animate character faces, poses and fingers in 3D using just your browser webcam!"
+    />
+
+    <!-- Facebook Meta Tags -->
+    <meta property="og:url" content="https://chansiu11.github.io/wjddbsghks/" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="Kalidoface 3D - Face & Full Body Tracking"
+    />
+    <meta
+      property="og:description"
+      content="Animate character faces, poses and fingers in 3D using just your browser webcam!"
+    />
+    <meta
+      property="og:image"
+      content="https://yeemachine.github.io/k2021/favicon/kalidoface3d/meta.jpg"
+    />
+
+    <!-- Twitter Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="twitter:domain" content="3d.kalidoface.com" />
+    <meta property="twitter:url" content="https://chansiu11.github.io/wjddbsghks/" />
+    <meta
+      name="twitter:title"
+      content="Kalidoface 3D - Face & Full Body Tracking"
+    />
+    <meta
+      name="twitter:description"
+      content="Animate character faces, poses and fingers in 3D using just your browser webcam!"
+    />
+    <meta
+      name="twitter:image"
+      content="https://yeemachine.github.io/k2021/favicon/kalidoface3d/meta.jpg"
+    />
+
+    <link rel="manifest" href="./manifest.json" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="viewport-fit=cover, user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
+
+    <meta name="theme-color" content="#16161d" />
+    <link rel="stylesheet" href="./global.css" />
+    <script>
+      var parcelRequire;
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1620248257/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1635989137/holistic.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.min.js" crossorigin="anonymous"></script>
+    <link
+      rel="shortcut icon"
+      href="https://yeemachine.github.io/k2021/favicon/kalidoface3d/icon-circle.svg"
+    />
+
+    <link
+      rel="apple-touch-icon"
+      href="https://yeemachine.github.io/k2021/favicon/kalidoface3d/apple-icon-180.png"
+    />
+
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2048-2732.jpg"
+      media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2732-2048.jpg"
+      media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1668-2388.jpg"
+      media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2388-1668.jpg"
+      media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1536-2048.jpg"
+      media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2048-1536.jpg"
+      media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1668-2224.jpg"
+      media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2224-1668.jpg"
+      media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1620-2160.jpg"
+      media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2160-1620.jpg"
+      media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1284-2778.jpg"
+      media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2778-1284.jpg"
+      media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1170-2532.jpg"
+      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2532-1170.jpg"
+      media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1125-2436.jpg"
+      media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2436-1125.jpg"
+      media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1242-2688.jpg"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2688-1242.jpg"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-828-1792.jpg"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1792-828.jpg"
+      media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1242-2208.jpg"
+      media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-2208-1242.jpg"
+      media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-750-1334.jpg"
+      media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1334-750.jpg"
+      media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-640-1136.jpg"
+      media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)"
+    />
+    <link
+      rel="apple-touch-startup-image"
+      href="https://yeemachine.github.io/k2021/splash/apple-splash-1136-640.jpg"
+      media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)"
+    />
+    <!-- External analytics omitted from this rehosted copy. -->
+
+    <script type="module" crossorigin src="./assets/index.e2bec78d.js"></script>
+    <link rel="modulepreload" href="./assets/vendor.832d142e.js">
+    <link rel="stylesheet" href="./assets/index.1b91a8e8.css">
+  </head>
+  <body>
+
+    <h1 class="notranslate">kalidoface</h1>
+    
+    <!--     <pwa-update></pwa-update> -->
+  </body>
+</html>
