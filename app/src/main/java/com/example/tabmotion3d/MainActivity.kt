@@ -21,6 +21,7 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
@@ -70,7 +71,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var cameraPreview: PreviewView
     private fun createLandmarker(gpu: Boolean): PoseLandmarker {
         val base = BaseOptions.builder().setModelAssetPath("pose_landmarker_lite.task")
-        if (gpu) base.setDelegate(BaseOptions.Delegate.GPU)
+        if (gpu) base.setDelegate(Delegate.GPU)
         return PoseLandmarker.createFromOptions(this,
             PoseLandmarker.PoseLandmarkerOptions.builder()
                 .setBaseOptions(base.build()).setRunningMode(RunningMode.LIVE_STREAM).setNumPoses(1)
