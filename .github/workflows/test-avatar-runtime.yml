@@ -30,12 +30,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p build/model
-          gh run download 39377923319 --repo chansiu11/wjddbsghks --name generated-avatar-rigged-review --dir build/model
-          test -s build/model/rigged-review.glb
+          gh run download 39378621626 --repo chansiu11/wjddbsghks --name tablet-optimized-rigged-model-review --dir build/model
+          test -s build/model/tablet-optimized-rigged.glb
       - name: Exercise avatar import in real browser
         run: |
-          python scripts/convert_glb_textures.py build/model/rigged-review.glb build/model/rigged-compatible.glb
-          python scripts/test_avatar_upload_browser.py build/model/rigged-compatible.glb
+          python scripts/test_avatar_upload_browser.py build/model/tablet-optimized-rigged.glb
       - name: Preserve debug screenshots and results, not model
         if: always()
         uses: actions/upload-artifact@v4
