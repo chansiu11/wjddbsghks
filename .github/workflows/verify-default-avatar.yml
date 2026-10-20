@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - '.github/workflows/verify-default-avatar.yml'
+      - 'scripts/test_default_avatar_live.py'
+      - 'assets/index.default-ai.js'
   workflow_dispatch:
 
 permissions:
@@ -29,7 +31,7 @@ jobs:
           for i in range(24):
               try:
                   html=requests.get(url,timeout=15).text
-                  ok='index.default-ai.js' in html and 'AI fan avatar compatibility error' in requests.get("https://chansiu11.github.io/wjddbsghks/assets/index.default-ai.js",timeout=15).text
+                  ok='index.default-ai.js' in html and 'Dt.target.set(_t.position.x,.95' in requests.get("https://chansiu11.github.io/wjddbsghks/assets/index.default-ai.js",timeout=15).text
                   print("Deployment",i,"new bundle",ok,flush=True)
                   if ok:break
               except Exception as e:print("Waiting:",str(e)[:140],flush=True)
