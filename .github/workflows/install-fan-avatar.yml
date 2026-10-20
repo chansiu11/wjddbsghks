@@ -1,0 +1,47 @@
+name: Install generated 3D avatar into Pages
+on:
+  push:
+    paths:
+      - '.github/workflows/install-fan-avatar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-generated-avatar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Retrieve generated and optimized 66-bone model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/rigged
+          gh run download 39378621626 --repo chansiu11/wjddbsghks --name tablet-optimized-rigged-model-review --dir build/rigged
+          test -s build/rigged/tablet-optimized-rigged.glb
+          python - <<'PY'
+          import struct,json,pathlib
+          path=pathlib.Path("build/rigged/tablet-optimized-rigged.glb")
+          raw=path.read_bytes()
+          assert raw[:4]==b"glTF"
+          length=struct.unpack_from("<I",raw,12)[0]
+          data=json.loads(raw[20:20+length])
+          assert len(data.get("skins",[]))==1
+          assert len(data["skins"][0]["joints"])>=60
+          print("Validated 3D GLB",len(raw),"bytes, bones",len(data["skins"][0]["joints"]))
+          PY
+      - name: Publish avatar asset without extracted Riot game data
+        run: |
+          mkdir -p assets/models
+          cp build/rigged/tablet-optimized-rigged.glb assets/models/fan-ksante-ai.glb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/models/fan-ksante-ai.glb
+          git commit -m "Publish fan-study AI generated humanoid model, optimized and rigged" || exit 0
+          git pull --rebase origin main
+          git push origin HEAD:main
