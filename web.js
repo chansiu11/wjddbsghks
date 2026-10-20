@@ -90,3 +90,7 @@ function stop(){running=false;stream?.getTracks().forEach(track=>track.stop());s
 startButton.addEventListener('click',start);
 stopButton.addEventListener('click',stop);
 window.addEventListener('pagehide',()=>stream?.getTracks().forEach(t=>t.stop()));
+
+// Open directly into the tracking experience; the button remains a retry path.
+if (navigator.mediaDevices?.getUserMedia) start();
+else status.textContent = '이 브라우저에서 카메라를 사용할 수 없습니다. HTTPS 주소를 확인하세요.';
