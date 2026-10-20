@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/test-nonquant-avatar.yml'
+      - 'scripts/test_unquant_avatar_browser.py'
   workflow_dispatch:
 
 permissions:
