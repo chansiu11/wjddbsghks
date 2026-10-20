@@ -40,7 +40,7 @@ async def test():
    body=await response.text()
    print("BUNDLE_ORIGINAL_SIZE",len(body),flush=True)
    old="z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)"
-   new='window.__glbLoaded=y.isGenericGLB===true?{name:y.name,rig:true,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k)),meshes:y.scene.children.length}:window.__glbLoaded,z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
+   new='window.__glbLoaded=y.isGenericGLB===true?{name:y.name,rig:true,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k)),meshes:y.scene.children.length,fit:y.scene.userData?.genericAvatarFit||null}:window.__glbLoaded,z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
    assert body.count(old)==1,("Model-ready hook not found",body.count(old))
    body=body.replace(old,new)
    old2='console.error("Character model import failed",err)'
