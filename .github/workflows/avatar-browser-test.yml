@@ -1,0 +1,35 @@
+name: Experimental account-free image to 3D browser test
+on:
+  push:
+    paths:
+      - '.github/workflows/avatar-browser-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-browser-image-to-3d:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Python setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install browser and libraries
+        run: |
+          python -m pip install --disable-pip-version-check playwright pillow requests numpy
+          python -m playwright install --with-deps chromium
+      - name: Try site UI once, no login
+        run: python scripts/browser_3dvalley.py
+      - name: Preserve reference and result for manual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: avatar-browser-3d-generation-review
+          path: build/ksante-ai/
+          if-no-files-found: warn
+          retention-days: 5
