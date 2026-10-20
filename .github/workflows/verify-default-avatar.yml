@@ -29,7 +29,7 @@ jobs:
           for i in range(24):
               try:
                   html=requests.get(url,timeout=15).text
-                  ok='index.default-ai.js' in html
+                  ok='index.default-ai.js' in html and 'AI fan avatar compatibility error' in requests.get("https://chansiu11.github.io/wjddbsghks/assets/index.default-ai.js",timeout=15).text
                   print("Deployment",i,"new bundle",ok,flush=True)
                   if ok:break
               except Exception as e:print("Waiting:",str(e)[:140],flush=True)
