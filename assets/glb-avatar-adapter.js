@@ -71,6 +71,14 @@ export function createGenericGLBAvatar(gltf, filename="Character.glb") {
     if(node.isMesh&&node.morphTargetDictionary&&node.morphTargetInfluences) morphMeshes.push(node);
   });
   if(!bones.length)throw Error("이 GLB에는 애니메이션 뼈대가 없습니다. 사람형 리깅 GLB/VRM 파일이 필요합니다.");
+  // Preserve FBX/glTF rest rotations. Generated armatures typically use
+  // non-identity bone rotations unlike the neutral VRM skeleton.
+  for(const {bone} of bones){
+    if(bone.quaternion?.clone){
+      bone.userData=bone.userData||{};
+      bone.userData.genericRestQuaternion=bone.quaternion.clone();
+    }
+  }
   const map=Object.create(null);
   for(const target of Object.keys(aliases)) map[normalize(target)]=findBone(bones,target);
   const missing=needs.filter(n=>!map[normalize(n)]);
