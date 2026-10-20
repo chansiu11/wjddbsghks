@@ -43,7 +43,7 @@ async def visit(browser,label,width,height):
             const neck=y.humanoid.getBoneNode("Neck");
             const head=y.humanoid.getBoneNode("Head");
             y.scene.updateMatrixWorld(true);
-            const h=new hn,p=new hn;
+            const h=new rl,p=new rl;
             hip.getWorldPosition(h);head.getWorldPosition(p);
             const s=E(V).user;
             return {hipY:hip.position.y,baseY:y.humanoid.restPose.hips.position[1],
