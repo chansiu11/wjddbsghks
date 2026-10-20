@@ -93,6 +93,8 @@ async def main():
   await page.screenshot(path=str(OUT/"default-avatar-live.png"),full_page=True,timeout=25000)
   extra=await page.evaluate("""()=>window.__getAvatarCamera?.()||null""")
   print("ACTIVE_CAMERA_POST_SCREENSHOT",json.dumps(extra),flush=True)
+  if not extra or not extra.get("active"):raise AssertionError("Active 3D camera missing after rendering")
+  if extra["active"]["world"][2]-extra["target"][2] < 2.5:raise AssertionError("Runtime forcibly zoomed camera into the model: "+str(extra))
   report={"status":status,"requests":requests,"responses":responses,"pageerrors":errors[-12:],"console":console[-15:]}
   (OUT/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
   print("REPORT",json.dumps(report,ensure_ascii=False),flush=True)
@@ -101,6 +103,9 @@ async def main():
   if not (status.get("state") or {}).get("generic"): raise AssertionError("GLB not loaded as default")
   if not all(status["state"]["bones"]): raise AssertionError("Incomplete humanoid mapping")
   if not status.get("camera") or (status["camera"]["position"][2]-status["camera"]["target"][2])<2.5: raise AssertionError("Camera is still too close to avatar")
+  bounds=status.get("meshDebug")
+  if not bounds or bounds.get("samples",0)<100:raise AssertionError("No skinned model geometry to validate")
+  if any(high-low>5 for low,high in zip(bounds["boundsMin"],bounds["boundsMax"])):raise AssertionError("Skinned geometry scale is corrupt: "+str(bounds))
   if status.get("head") and all(status.get("feet") or []):
    if status["head"][1]-sum(x[1] for x in status["feet"])/2 < 0.7:raise AssertionError("Avatar skeleton appears folded or lying down")
   if not any(q["status"]==200 and "fan-ksante-ai.glb" in q["url"] for q in responses):
