@@ -25,7 +25,7 @@ async def main():
    text=await r.text()
    print("BUNDLE_SIZE",len(text),flush=True)
    old='z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
-   patched='window.__mountedDefaultAvatar={name:y.name,generic:y.isGenericGLB,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k))},window.__modelRef=y,z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
+   patched='window.__getAvatarCamera=()=>({position:[jt.position.x,jt.position.y,jt.position.z],target:[Dt.target.x,Dt.target.y,Dt.target.z]}),window.__mountedDefaultAvatar={name:y.name,generic:y.isGenericGLB,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k))},window.__modelRef=y,z.model=y,V.set(n),zs(y,z.tracking,z.id,!0)'
    if text.count(old)!=1: raise AssertionError(f"hook missing, count={text.count(old)}")
    text=text.replace(old,patched)
    old_err='console.error("Character model import failed",err)'
@@ -52,7 +52,7 @@ async def main():
       hips:coord("Hips"),
       head:coord("Head"),
       feet:[coord("LeftFoot"),coord("RightFoot")],
-      canvasCount:document.querySelectorAll("canvas").length,
+      camera:window.__getAvatarCamera?.()||null,\n      canvasCount:document.querySelectorAll("canvas").length,
       source:document.querySelector('script[src*="default-ai"]')?.src||null
      };
    }""")
@@ -65,8 +65,9 @@ async def main():
   print("REPORT",json.dumps(report,ensure_ascii=False),flush=True)
   await browser.close()
   if status.get("source") is None: raise AssertionError("Deployment not switched to default bundle")
-  if not status.get("state",{}).get("generic"): raise AssertionError("GLB not loaded as default")
+  if not (status.get("state") or {}).get("generic"): raise AssertionError("GLB not loaded as default")
   if not all(status["state"]["bones"]): raise AssertionError("Incomplete humanoid mapping")
+  if not status.get("camera") or (status["camera"]["position"][2]-status["camera"]["target"][2])<2.5: raise AssertionError("Camera is still too close to avatar")
   if not any(q["status"]==200 and "fan-ksante-ai.glb" in q["url"] for q in responses):
    raise AssertionError("No HTTP 200 GLB asset")
 if __name__=="__main__":asyncio.run(main())
