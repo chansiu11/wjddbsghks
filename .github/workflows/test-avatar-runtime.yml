@@ -1,4 +1,5 @@
 name: Local GLB runtime compatibility test
+# QA: inspect only the imported generic GLB, not the bundled default VRM.
 on:
   push:
     paths:
