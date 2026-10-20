@@ -1,0 +1,29 @@
+name: Build debug APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Download official MediaPipe pose model
+        run: |
+          mkdir -p app/src/main/assets
+          curl --fail --location --retry 3 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task' -o app/src/main/assets/pose_landmarker_lite.task
+          test -s app/src/main/assets/pose_landmarker_lite.task
+      - run: gradle --no-daemon :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TabMotion3D-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
