@@ -30,9 +30,16 @@ async def visit(browser,label,width,height):
     page.on("console",lambda m:console.append(m.type+": "+m.text[:350]) if m.type=="error" else None)
     page.on("response",lambda r:asset_status.append({"url":r.url,"status":r.status}) if r.url.endswith("fan-ksante-ai.glb") else None)
     async def instrument(route):
-        response=await route.fetch()
-        source=await response.text()
-        if EXPECTED not in source:raise RuntimeError("Hip-height fix not yet deployed")
+        source=""
+        response=None
+        for attempt in range(8):
+            # Bust cached JS across independent GitHub Pages CDN edge nodes.
+            response=await route.fetch(url=route.request.url.split("?")[0]+"?face-height-regression=20261021v2")
+            source=await response.text()
+            if EXPECTED in source:break
+            print("CHECKING_DEPLOYMENT_CDN_EDGE",attempt,len(source),flush=True)
+            await asyncio.sleep(2)
+        if EXPECTED not in source:raise RuntimeError("Hip-height fix not yet visible on browser CDN edge")
         if CAMERA_FIX not in source:raise RuntimeError("Camera zoom fix not deployed")
         target='z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
         if source.count(target)!=1:raise RuntimeError("Avatar instance hook not found")
