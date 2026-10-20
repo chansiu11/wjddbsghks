@@ -1,5 +1,5 @@
 name: Local GLB runtime compatibility test
-# QA: inspect only the imported generic GLB, not the bundled default VRM.
+# QA: verify the now-deployed WebP repair bundle on the public URL.
 on:
   push:
     paths:
