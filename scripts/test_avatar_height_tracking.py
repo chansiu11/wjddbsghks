@@ -12,7 +12,7 @@ from playwright.async_api import async_playwright
 BASE="https://chansiu11.github.io/wjddbsghks/"
 OUT=Path("build/height-regression")
 OUT.mkdir(parents=True,exist_ok=True)
-EXPECTED='if(l.isGenericGLB){const anchor=l.humanoid.restPose.hips.position;o.position.set(anchor[0],anchor[1],anchor[2])}'
+EXPECTED='if(l.isGenericGLB){const anchor=l.humanoid.restPose.hips.position;o.position.set(anchor[0],anchor[1],anchor[2]);return}'
 CAMERA_FIX="isGenericGLB?Dt.target.z+3.7"
 
 async def visit(browser,label,width,height):
@@ -56,6 +56,7 @@ async def visit(browser,label,width,height):
             return {hipY:hip.position.y,baseY:y.humanoid.restPose.hips.position[1],
               hipWorldY:h.y,headWorldY:p.y,sceneY:y.scene.position.y,
               neckQuat:neck?[neck.quaternion.x,neck.quaternion.y,neck.quaternion.z,neck.quaternion.w]:null,
+              hipQuat:[hip.quaternion.x,hip.quaternion.y,hip.quaternion.z,hip.quaternion.w],
               detected:s.detected,poseEnabled:s.tracking.Pose.enable};
           },
           setPose:(enabled)=>{
@@ -97,18 +98,24 @@ async def visit(browser,label,width,height):
     world_dy=max(abs(v["hipWorldY"]-initial["hipWorldY"]) for v in samples)
     scene_dy=max(abs(v["sceneY"]-initial["sceneY"]) for v in samples)
     detected_count=sum(bool(v["detected"]) for v in samples)
+    hip_rotation_delta=max(max(abs(a-b) for a,b in zip(x["hipQuat"],initial["hipQuat"])) for x in samples)
+    neck_rotation_delta=max(max(abs(a-b) for a,b in zip(x["neckQuat"],initial["neckQuat"])) for x in samples if x["neckQuat"])
     report={"initial":initial,"samples":samples,"after":after,
             "hipLocalMaxDelta":dy,"hipWorldMaxDelta":world_dy,"sceneMaxDelta":scene_dy,
-            "detectedSamples":detected_count,"assetStatus":asset_status,"errors":errors,"console":console[-10:]}
+            "detectedSamples":detected_count,"hipRotationMaxDelta":hip_rotation_delta,
+            "neckRotationMaxDelta":neck_rotation_delta,"assetStatus":asset_status,"errors":errors,"console":console[-10:]}
     (OUT/(label+".json")).write_text(json.dumps(report,ensure_ascii=False,indent=2))
     print("REGRESSION",label,json.dumps({
         "hipLocalMaxDelta":dy,"hipWorldMaxDelta":world_dy,"sceneMaxDelta":scene_dy,
-        "detectedSamples":detected_count,"assets":asset_status,"errors":errors[-5:]},ensure_ascii=False),flush=True)
+        "detectedSamples":detected_count,"hipRotationMaxDelta":hip_rotation_delta,
+        "neckRotationMaxDelta":neck_rotation_delta,"assets":asset_status,"errors":errors[-5:]},ensure_ascii=False),flush=True)
     await ctx.close()
     assert detected_count>4,"Did not exercise face-detected tracking path"
     assert dy<0.015,f"Generic GLB hips drift during face detection: {dy}"
     assert world_dy<0.5,f"Avatar flies up when tracked: {world_dy}"
     assert scene_dy<0.04,f"Avatar origin unexpectedly moves up: {scene_dy}"
+    assert hip_rotation_delta<0.005,f"GLB pelvis was rotated by old VRM animation: {hip_rotation_delta}"
+    assert neck_rotation_delta>0.03,"Face tracking did not animate the neck"
     assert asset_status and any(r["status"]==200 for r in asset_status),"No model asset"
     assert not any("Character model import failed" in x for x in console),"GLB import error"
 
