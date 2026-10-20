@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/verify-avatar-height.yml'
       - 'scripts/test_avatar_height_tracking.py'
+      - 'assets/index.default-ai.js'
   workflow_dispatch:
 
 permissions:
