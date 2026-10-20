@@ -1,5 +1,5 @@
 name: Local GLB runtime compatibility test
-# QA: verify the now-deployed WebP repair bundle on the public URL.
+# QA: validate visible auto-fitted 1.7m generated GLB, deployed adapter.
 on:
   push:
     paths:
