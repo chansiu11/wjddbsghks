@@ -99,6 +99,11 @@ async def test():
   if not final["loaded"]:raise AssertionError("No character loaded after 30 seconds")
   if not final["loaded"]["rig"]:raise AssertionError("Loaded character is not using generic GLB adapter")
   if not all(final["loaded"]["bones"]):raise AssertionError("Required joints missing in loaded avatar")
+  if model_coordinates:
+    head=model_coordinates["head"]
+    feet=[model_coordinates["leftFoot"],model_coordinates["rightFoot"]]
+    if not head or any(not x for x in feet) or head[1]-max(x[1] for x in feet)<0.65:
+      raise AssertionError("GLB character skeleton is still flattened: "+str(model_coordinates))
 
 if __name__=="__main__":
  asyncio.run(test())
