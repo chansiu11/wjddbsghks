@@ -1,0 +1,62 @@
+name: Rig generated 3D character GLB
+on:
+  push:
+    paths:
+      - '.github/workflows/rig-avatar-glb.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  rig-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Download generated GLB artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/rigging
+          gh run download 39377380594 --repo chansiu11/wjddbsghks --name avatar-browser-3d-generation-review --dir build/rigging
+          ls -lh build/rigging
+      - name: Rig generated mesh locally (free, no signup)
+        run: |
+          timeout 600 npx -y afk-rig auto build/rigging/experimental-avatar-unrigged.glb --skeleton human || echo "Rig tool returned a failure; retaining input for inspection"
+          find build/rigging -maxdepth 2 -name '*.glb' -printf '%p %k KB\n'
+      - name: Validate and rename GLB
+        run: |
+          python - <<'PY'
+          import pathlib,struct,json,shutil
+          root=pathlib.Path("build/rigging")
+          candidates=list(root.rglob("*.glb"))
+          print("GLB files:",[(str(p),p.stat().st_size) for p in candidates])
+          validated=[]
+          for p in candidates:
+              data=p.read_bytes()
+              if data[:4]!=b"glTF":continue
+              start=12; size,chunk_type=struct.unpack_from("<I4s",data,start)
+              gltf=json.loads(data[start+8:start+8+size])
+              print("FILE",p,"skins",len(gltf.get("skins",[])),"animations",len(gltf.get("animations",[])),"nodes",len(gltf.get("nodes",[])),"meshes",len(gltf.get("meshes",[])))
+              print("JOINT NAMES",[(node.get("name") or "unnamed") for node in gltf.get("nodes",[]) if "name" in node][:80])
+              if gltf.get("skins"):validated.append(p)
+          if validated:
+              p=validated[0]
+              target=root/"rigged-review.glb"
+              if p!=target:shutil.copy(p,target)
+              print("RIGGED_FILE",target,target.stat().st_size)
+          else:
+              print("RIGGING_RESULT: NO_RIGGED_GLB")
+          PY
+      - name: Save private review assets (not published to Pages)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-avatar-rigged-review
+          path: |
+            build/rigging/*.glb
+          if-no-files-found: warn
+          retention-days: 5
