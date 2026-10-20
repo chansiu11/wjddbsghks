@@ -1,4 +1,4 @@
-name: Trial non-quantized humanoid render
+name: Test original unoptimized humanoid render
 on:
   push:
     paths:
@@ -25,13 +25,10 @@ jobs:
           mkdir -p build/noquant
           gh run download 39377923319 --repo chansiu11/wjddbsghks --name generated-avatar-rigged-review --dir build/noquant
           ls -lh build/noquant/rigged-review.glb
-      - name: Simplify geometry WITHOUT mesh quantization
-        run: |
-          npx -y gltfpack -i build/noquant/rigged-review.glb -o build/noquant/noquant-webp.glb -si 0.60 -kn -km -ke -noq
       - name: Convert WebP textures into legacy GLTFLoader-compatible format
         run: |
           python -m pip install --disable-pip-version-check pillow
-          python scripts/convert_glb_textures.py build/noquant/noquant-webp.glb build/noquant/noquant-compatible.glb
+          python scripts/convert_glb_textures.py build/noquant/rigged-review.glb build/noquant/noquant-compatible.glb
           python - <<'PY'
           import json,struct,pathlib
           p=pathlib.Path("build/noquant/noquant-compatible.glb"); b=p.read_bytes()
