@@ -20,7 +20,9 @@ jobs:
       - name: Install anonymous Space client
         run: python -m pip install --disable-pip-version-check gradio_client pillow numpy requests
       - name: Try Stable Fast 3D generation without sign-up
-        run: python scripts/generate_sf3d.py
+        run: |
+          python -c 'from gradio_client import Client; import json; c=Client("stabilityai/stable-fast-3d"); d=c.view_api(return_format="dict"); print("SF3D ENDPOINTS",json.dumps(d,default=str)[:18000])'
+          python scripts/generate_sf3d.py
       - name: Preserve source and generated GLB for review
         if: always()
         uses: actions/upload-artifact@v4
