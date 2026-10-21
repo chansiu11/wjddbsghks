@@ -11,7 +11,8 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 BASE="https://chansiu11.github.io/wjddbsghks/"
-CANDIDATE=Path(sys.argv[1]).resolve() if len(sys.argv)>1 else None
+LIVE_MESHY="--live-meshy" in sys.argv[1:]
+CANDIDATE=Path(sys.argv[1]).resolve() if len(sys.argv)>1 and not sys.argv[1].startswith("--") else None
 if CANDIDATE:assert CANDIDATE.is_file() and CANDIDATE.stat().st_size>500000
 OUT=Path("build/height-regression")
 OUT.mkdir(parents=True,exist_ok=True)
@@ -31,7 +32,7 @@ async def visit(browser,label,width,height):
     asset_status=[]
     page.on("pageerror",lambda e:errors.append(str(e)))
     page.on("console",lambda m:console.append(m.type+": "+m.text[:350]) if m.type=="error" else None)
-    page.on("response",lambda r:asset_status.append({"url":r.url,"status":r.status}) if r.url.endswith("fan-ksante-ai.glb") else None)
+    page.on("response",lambda r:asset_status.append({"url":r.url,"status":r.status}) if r.url.lower().split("?")[0].endswith(".glb") else None)
     async def instrument(route):
         source=""
         response=None
@@ -39,11 +40,12 @@ async def visit(browser,label,width,height):
         for attempt in range(28):
             response=await route.fetch(url=route.request.url.split("?")[0]+"?meshy-rig-validation=front-v4")
             source=await response.text()
-            if EXPECTED in source and (not CANDIDATE or front_fix in source):break
+            if EXPECTED in source and (not CANDIDATE and not LIVE_MESHY or front_fix in source) and (not LIVE_MESHY or 'Yt=[{id:98,name:"Meshy Gilded Vanguard"' in source):break
             print("WAITING_FOR_DEPLOYED_MESHY_FRONT",attempt,len(source),flush=True)
             await asyncio.sleep(4)
         if EXPECTED not in source:raise RuntimeError("Hip-height fix not deployed")
-        if CANDIDATE and front_fix not in source:raise RuntimeError("New Meshy front-facing bundle not yet deployed")
+        if (CANDIDATE or LIVE_MESHY) and front_fix not in source:raise RuntimeError("New Meshy front-facing bundle not yet deployed")
+        if LIVE_MESHY and 'Yt=[{id:98,name:"Meshy Gilded Vanguard"' not in source:raise RuntimeError("Meshy not yet deployed as default")
         if CAMERA_FIX not in source:raise RuntimeError("Camera zoom fix not deployed")
         if CANDIDATE and "meshy" in CANDIDATE.name.lower():
             rig_call='createGenericGLBAvatar(g,v.name||"Model.glb")'
@@ -136,7 +138,7 @@ async def visit(browser,label,width,height):
     assert feet_dy<0.1,f"Face-only detection caused untracked feet to fly: {feet_dy}"
     assert head_dy<0.25,f"Face-only detection shifted the avatar head vertically: {head_dy}"
     assert neck_rotation_delta>0.03,"Face tracking did not animate the neck"
-    if CANDIDATE and "meshy" in CANDIDATE.name.lower():
+    if CANDIDATE and "meshy" in CANDIDATE.name.lower() or LIVE_MESHY:
         assert initial["isMeshy"],"Did not recognize Meshy avatar orientation"
         assert abs(after["sceneRotation"])<0.001,"Meshy should face the camera at its neutral yaw"
     assert asset_status and any(r["status"]==200 for r in asset_status),"No model asset"
