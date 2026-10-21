@@ -35,14 +35,15 @@ async def visit(browser,label,width,height):
     async def instrument(route):
         source=""
         response=None
-        for attempt in range(8):
-            # Bust cached JS across independent GitHub Pages CDN edge nodes.
-            response=await route.fetch(url=route.request.url.split("?")[0]+"?face-height-regression=20261021v2")
+        front_fix='y.isGenericGLB?y.scene.rotation.y=y.isMeshyAvatar?0:Math.PI'
+        for attempt in range(28):
+            response=await route.fetch(url=route.request.url.split("?")[0]+"?meshy-rig-validation=front-v4")
             source=await response.text()
-            if EXPECTED in source:break
-            print("CHECKING_DEPLOYMENT_CDN_EDGE",attempt,len(source),flush=True)
-            await asyncio.sleep(2)
-        if EXPECTED not in source:raise RuntimeError("Hip-height fix not yet visible on browser CDN edge")
+            if EXPECTED in source and (not CANDIDATE or front_fix in source):break
+            print("WAITING_FOR_DEPLOYED_MESHY_FRONT",attempt,len(source),flush=True)
+            await asyncio.sleep(4)
+        if EXPECTED not in source:raise RuntimeError("Hip-height fix not deployed")
+        if CANDIDATE and front_fix not in source:raise RuntimeError("New Meshy front-facing bundle not yet deployed")
         if CAMERA_FIX not in source:raise RuntimeError("Camera zoom fix not deployed")
         if CANDIDATE and "meshy" in CANDIDATE.name.lower():
             rig_call='createGenericGLBAvatar(g,v.name||"Model.glb")'
