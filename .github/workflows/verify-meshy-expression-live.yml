@@ -1,0 +1,57 @@
+name: Verify live Meshy facial expressions
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-meshy-expression-live.yml'
+      - 'scripts/test_meshy_expression_production.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  face-live-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Confirm actually deployed GLB has 8 facial morph targets
+        run: |
+          python - <<'PY'
+          import json,struct,time,urllib.request
+          base='https://chansiu11.github.io/wjddbsghks/'
+          for i in range(30):
+              try:
+                  req=urllib.request.Request(base+'assets/models/meshy-gilded-vanguard-rigged.glb?face-live-v1',headers={'Cache-Control':'no-cache'})
+                  with urllib.request.urlopen(req,timeout=35) as r:
+                      b=r.read()
+                  assert b[:4]==b'glTF'
+                  length=struct.unpack_from('<I',b,12)[0]
+                  j=json.loads(b[20:20+length])
+                  targets=j["meshes"][0]["primitives"][0].get("targets",[])
+                  if len(targets)!=8:raise ValueError('Only '+str(len(targets))+' morph targets deployed')
+                  assert len(j["skins"][0]["joints"])==66
+                  print('LIVE_FACIAL_MODEL_CONFIRMED',len(b),'bytes',len(targets),'targets',flush=True)
+                  break
+              except Exception as ex:
+                  print('Waiting for updated Pages facial model',i,str(ex)[:150],flush=True)
+                  time.sleep(6)
+          else:raise SystemExit('Live GitHub Pages never served facial model')
+          PY
+      - name: Install Chromium
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Verify desktop and mobile expression tracking against real model
+        run: python scripts/test_meshy_expression_production.py
+      - name: Archive proof screenshots and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshy-live-expression-proof
+          path: build/meshy-expression-production-qa/
+          retention-days: 7
+          if-no-files-found: warn
