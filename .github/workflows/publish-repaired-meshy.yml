@@ -1,0 +1,60 @@
+name: Publish corrected Meshy VTuber model
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-repaired-meshy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+  pages: write
+
+jobs:
+  replace-after-verified-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Fetch already passing rebuilt 66-joint model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/approved
+          gh run download 39533422883 --repo chansiu11/wjddbsghks --name meshy-corrected-rig-review --dir build/approved
+          test -s build/approved/meshy-repair/meshy-rig-safe.glb
+      - name: Check skinned rig and hands before changing default
+        run: |
+          node scripts/validate_glb_adapter.mjs build/approved/meshy-repair/meshy-rig-safe.glb
+          python - <<'PY'
+          import json,struct,pathlib
+          p=pathlib.Path("build/approved/meshy-repair/meshy-rig-safe.glb")
+          b=p.read_bytes()
+          assert b[:4]==b"glTF"
+          count=struct.unpack_from("<I",b,12)[0]
+          gltf=json.loads(b[20:20+count])
+          assert len(gltf['skins'][0]['joints'])==66
+          assert gltf['meshes'][0]['primitives'][0]['attributes'].get('JOINTS_0') is not None
+          assert 4_000_000<p.stat().st_size<20_000_000
+          assert not any(x in gltf.get('extensionsRequired',[]) for x in ['KHR_mesh_quantization','EXT_texture_webp'])
+          print('Approved humanoid asset',len(b),flush=True)
+          PY
+      - name: Install corrected model, keep old model in selection list
+        run: |
+          python scripts/publish_meshy_candidate.py build/approved/meshy-repair/meshy-rig-safe.glb
+          test -s assets/models/meshy-gilded-vanguard-rigged.glb
+          grep -q 'Meshy Gilded Vanguard' assets/index.default-ai.js
+          grep -q 'userModel-meshy-v1' assets/index.default-ai.js
+      - name: Commit and deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/models/meshy-gilded-vanguard-rigged.glb assets/index.default-ai.js sw.js
+          git commit -m "Replace distorted manually weighted Meshy avatar with verified 66-joint automatic rig"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Pages build API not available; branch build may require fresh commit"
