@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Switch to a verified user-supplied Meshy GLB; preserve prior default as fallback."""
 from pathlib import Path
-import re,shutil
-candidate=Path("assets/uploads/Meshy_Gilded_Vanguard_rigged_preview.glb")
+import re,shutil,sys
+candidate=Path(sys.argv[1]) if len(sys.argv)>1 else Path("assets/uploads/Meshy_Gilded_Vanguard_rigged_preview (1).glb")
 target=Path("assets/models/meshy-gilded-vanguard-rigged.glb")
 assert candidate.is_file()
 target.parent.mkdir(parents=True,exist_ok=True)
