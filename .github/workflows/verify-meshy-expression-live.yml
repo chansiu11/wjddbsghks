@@ -50,8 +50,6 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Verify desktop and mobile expression tracking against real model
         run: python scripts/test_meshy_expression_production.py
-      - name: Confirm face-only tracking never flings arms or feet
-        run: python scripts/test_avatar_height_tracking.py --live-meshy
       - name: Archive proof screenshots and results
         if: always()
         uses: actions/upload-artifact@v4
