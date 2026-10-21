@@ -38,7 +38,7 @@ async def main():
         const s=E(V);
         s.user.detected=true;
         const f=s.user.tracking.Face;
-        f.eye.l=eye;f.eye.r=eye;
+        f.eye.l=eye;f.eye.r=eye;f.detected=true;f.lastTrackedAt=performance.now();
         f.mouth.x=smile;
         f.mouth.shape.A=mouth;
         f.mouth.shape.E=.1;
@@ -48,6 +48,7 @@ async def main():
         f.brow=brow;
         V.set(s);
       },
+      loseTracking:()=>{const s=E(V);s.user.detected=false;s.user.tracking.Face.detected=false;s.user.tracking.Face.lastTrackedAt=performance.now()-3000;V.set(s);},
       state:()=>{
         let m=null;y.scene.traverse(o=>{if(o.isSkinnedMesh&&o.morphTargetDictionary)m=o});
         const dict=m?.morphTargetDictionary||{};
@@ -87,13 +88,22 @@ async def main():
    assert changed["values"].get("smile",0)>.6,"Smile not animated"
    assert changed["values"].get("browUp",0)>.6,"Eyebrows not animated"
    await page.screenshot(path=str(OUT/(name+"-tracked.png")),full_page=True)
+   await page.evaluate("()=>window.__faceQa.loseTracking()")
+   await page.wait_for_timeout(1400)
+   recovered=await page.evaluate("()=>window.__faceQa.state()")
+   print("EXPRESSION_LOST_TRACKING",name,json.dumps(recovered),flush=True)
+   assert max(recovered["values"].values())<.06,"Expression persists after camera loses face"
+   await page.evaluate("()=>window.__faceQa.set(.5,.7,.65,.5)")
+   await page.wait_for_timeout(400)
+   resumed=await page.evaluate("()=>window.__faceQa.state()")
+   assert resumed["values"].get("mouthOpen",0)>.22,"Mouth did not recover after face tracking reappeared"
    await page.click("#meshy-facing-flip")
    await page.wait_for_timeout(300)
    reversed_state=await page.evaluate("()=>window.__faceQa.state()")
    print("REVERSED",name,reversed_state["rotation"],flush=True)
    assert abs(abs(reversed_state["rotation"])-3.141592653589793)<0.08,"Direction switch did not rotate model"
    assert not errors,"Page JavaScript errors: "+str(errors[:5])
-   reports.append({"viewport":name,"before":first,"after":changed,"flipped":reversed_state,"errors":errors})
+   reports.append({"viewport":name,"before":first,"after":changed,"lostFace":recovered,"resumed":resumed,"flipped":reversed_state,"errors":errors})
    await context.close()
   (OUT/"report.json").write_text(json.dumps(reports,ensure_ascii=False,indent=2))
   await browser.close()
