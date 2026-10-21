@@ -16,6 +16,9 @@ concurrency:
 
 jobs:
   validate-and-install:
+    # Disabled: the original geometry-based rig is known to deform badly.
+    # Only the repaired afk-rig pipeline may replace the default avatar.
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
