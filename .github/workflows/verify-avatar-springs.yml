@@ -1,0 +1,24 @@
+name: Verify avatar spring physics
+
+on:
+  push:
+    paths:
+      - 'assets/glb-avatar-adapter.js'
+      - 'scripts/test_secondary_springs.mjs'
+      - '.github/workflows/verify-avatar-springs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secondary-motion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Simulate neck/chest tracking and spring settling
+        run: node scripts/test_secondary_springs.mjs
