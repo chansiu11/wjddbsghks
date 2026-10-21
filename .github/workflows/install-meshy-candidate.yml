@@ -3,7 +3,7 @@ name: Validate and install Meshy VTuber model
 on:
   push:
     paths:
-      - 'assets/uploads/meshy-candidate.glb'
+      - 'assets/uploads/Meshy_Gilded_Vanguard_rigged_preview.glb'
   workflow_dispatch:
 
 permissions:
@@ -26,9 +26,9 @@ jobs:
 
       - name: Validate skin, finger bones, and hair/cloth bones
         run: |
-          test -s assets/uploads/meshy-candidate.glb
-          python scripts/validate_meshy_glb.py assets/uploads/meshy-candidate.glb
-          node scripts/validate_glb_adapter.mjs assets/uploads/meshy-candidate.glb
+          test -s assets/uploads/Meshy_Gilded_Vanguard_rigged_preview.glb
+          python scripts/validate_meshy_glb.py assets/uploads/Meshy_Gilded_Vanguard_rigged_preview.glb
+          node scripts/validate_glb_adapter.mjs assets/uploads/Meshy_Gilded_Vanguard_rigged_preview.glb
 
       - name: Prepare Chromium test browser
         run: |
@@ -36,10 +36,10 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Load Meshy candidate inside real Kalidoface runtime
-        run: python scripts/test_unquant_avatar_browser.py assets/uploads/meshy-candidate.glb
+        run: python scripts/test_unquant_avatar_browser.py assets/uploads/Meshy_Gilded_Vanguard_rigged_preview.glb
 
       - name: Face-only and full-body stability regression for Meshy
-        run: python scripts/test_avatar_height_tracking.py assets/uploads/meshy-candidate.glb
+        run: python scripts/test_avatar_height_tracking.py assets/uploads/Meshy_Gilded_Vanguard_rigged_preview.glb
 
       - name: Commit only after browser checks pass
         env:
