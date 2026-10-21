@@ -38,6 +38,9 @@ jobs:
       - name: Load Meshy candidate inside real Kalidoface runtime
         run: python scripts/test_unquant_avatar_browser.py assets/uploads/meshy-candidate.glb
 
+      - name: Face-only and full-body stability regression for Meshy
+        run: python scripts/test_avatar_height_tracking.py assets/uploads/meshy-candidate.glb
+
       - name: Commit only after browser checks pass
         env:
           GH_TOKEN: ${{ github.token }}
@@ -57,6 +60,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: meshy-candidate-browser-qa
-          path: build/noquant-avatar-qa/
+          path: |
+            build/noquant-avatar-qa/
+            build/height-regression/
           retention-days: 7
           if-no-files-found: warn
