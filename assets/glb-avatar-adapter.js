@@ -45,9 +45,9 @@ const needs=[
 const expressionAliases={
   blink:["blink","eyeblink"],blinkl:["blinkleft","eyeblinkleft","eyeblinkl"],
   blinkr:["blinkright","eyeblinkright","eyeblinkr"],
-  a:["aa","visemeaa","mouthopen","jawopen"],i:["ih","visemeih"],
-  u:["ou","visemeou"],e:["ee","visemeee"],o:["oh","visemeoh"],
-  joy:["happy","smile","joy"]
+  a:["aa","visemeaa","mouthopen","jawopen"],i:["ih","visemeih","mouthi"],
+  u:["ou","visemeou","mouthu"],e:["ee","visemeee","mouthe"],o:["oh","visemeoh","moutho"],
+  joy:["happy","smile","joy"],browup:["browup","browraise"]
 };
 function findBone(entries,target){
   const keys=aliases[target]||[target.toLowerCase()];
@@ -178,12 +178,32 @@ export function createGenericGLBAvatar(gltf, filename="Character.glb") {
       spring.bone.quaternion.copy(qSwing).multiply(eulerLike);
     }
   }
+  const expressionInputs=Object.create(null);
+  const setMorph=(name,value)=>{
+    const items=expressions[name];
+    if(!items)return;
+    for(const {mesh,index} of items) mesh.morphTargetInfluences[index]=value;
+  };
   const proxy={
     setValue(preset,value){
-      const items=expressions[normalize(preset)];
-      if(!items)return;
+      const key=normalize(preset);
       const v=Math.max(0,Math.min(1,Number(value)||0));
-      for(const {mesh,index} of items) mesh.morphTargetInfluences[index]=v;
+      expressionInputs[key]=v;
+      setMorph(key,v);
+      // A real Meshy scan lacks dedicated lip topology for all phonemes.
+      // Combine similar detected vowels rather than replacing a previous
+      // nonzero mouth shape with the last zero-valued callback.
+      if(/meshy/i.test(filename)&&expressions.a){
+        setMorph("a",Math.min(1,Math.max(expressionInputs.a||0,
+          .52*(expressionInputs.i||0),.40*(expressionInputs.u||0))));
+        setMorph("o",Math.min(1,Math.max(expressionInputs.o||0,
+          .78*(expressionInputs.u||0))));
+        setMorph("e",Math.min(1,Math.max(expressionInputs.e||0,
+          .72*(expressionInputs.i||0))));
+      }
+    },
+    getValue(preset){
+      return expressionInputs[normalize(preset)]||0;
     }
   };
   return {
