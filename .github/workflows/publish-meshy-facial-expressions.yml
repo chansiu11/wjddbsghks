@@ -6,12 +6,11 @@ on:
       - '.github/workflows/publish-meshy-facial-expressions.yml'
       - 'scripts/build_meshy_face_morphs.py'
       - 'scripts/test_meshy_expressions_browser.py'
-      - 'assets/index.default-ai.js'
-      - 'assets/glb-avatar-adapter.js'
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: read
   pages: write
 
 concurrency:
@@ -35,10 +34,17 @@ jobs:
           node --check assets/glb-avatar-adapter.js
           python -m pip install --disable-pip-version-check numpy playwright pillow
           python -m playwright install --with-deps chromium
+      - name: Download safely auto-rigged source without morphs (rebuildable)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/face-base
+          gh run download 39533422883 --repo chansiu11/wjddbsghks --name meshy-corrected-rig-review --dir build/face-base
+          test -s build/face-base/meshy-repair/meshy-rig-safe.glb
       - name: Build eight forehead, eyelid, lip and smile morphs without touching skin
         run: |
           mkdir -p build/meshy-face
-          python scripts/build_meshy_face_morphs.py assets/models/meshy-gilded-vanguard-rigged.glb build/meshy-face/meshy-expressions.glb
+          python scripts/build_meshy_face_morphs.py build/face-base/meshy-repair/meshy-rig-safe.glb build/meshy-face/meshy-expressions.glb
           node scripts/validate_glb_adapter.mjs build/meshy-face/meshy-expressions.glb
           python - <<'PY'
           import json,struct,pathlib
