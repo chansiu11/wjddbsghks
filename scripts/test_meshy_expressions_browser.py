@@ -7,7 +7,7 @@ ROOT="https://chansiu11.github.io/wjddbsghks/"
 MODEL=Path(sys.argv[1]).resolve()
 assert MODEL.is_file() and MODEL.stat().st_size>10_000_000
 OUT=Path("build/meshy-expression-qa");OUT.mkdir(parents=True,exist_ok=True)
-EXPECTED=["const meshFlipPanel=(show)=>","n.setValue(i.Blink,c-(l.isMeshyAvatar?0:r))"]
+EXPECTED=["const meshFlipPanel=(show)=>","n.setValue(i.Blink,c-(l.isMeshyAvatar?0:r))","active?.isMeshyAvatar&&(active.scene.rotation.y=flipped?Math.PI:0)"]
 NAMES={"blink","blinkLeft","blinkRight","mouthOpen","smile","mouthO","mouthE","browUp"}
 async def main():
  async with async_playwright() as pw:
@@ -24,7 +24,7 @@ async def main():
    async def source_patch(route):
     response=None;source=""
     for attempt in range(20):
-     response=await route.fetch(url=route.request.url.split("?")[0]+"?meshy-expression-ready=v2")
+     response=await route.fetch(url=route.request.url.split("?")[0]+"?meshy-expression-ready=v3")
      source=await response.text()
      if all(marker in source for marker in EXPECTED):break
      await asyncio.sleep(3)
