@@ -24,7 +24,7 @@ sw=Path("sw.js")
 if sw.is_file():
     current=sw.read_text()
     def next_version(m):return "kalidoface-local-v"+str(int(m.group(1))+1)
-    changed=re.sub(r"kalidoface-local-v(\\d+)",next_version,current,count=1)
+    changed=re.sub(r"kalidoface-local-v(\d+)",next_version,current,count=1)
     assert changed!=current,"Service worker cache key missing"
     sw.write_text(changed)
 print("INSTALLED",target,target.stat().st_size,"bytes")
