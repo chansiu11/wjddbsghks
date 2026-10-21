@@ -1,6 +1,6 @@
 # Upload Meshy avatar for automatic GitHub Pages installation
 
-**Upload one file here and name it `meshy-candidate.glb`.**
+**Upload one file here and name it `Meshy_Gilded_Vanguard_rigged_preview.glb`.**
 
 Use the `Meshy_Gilded_Vanguard_rigged_preview.glb` created by ChatGPT from your Meshy FBX, with 72 bones including auxiliary hair and cloth springs.
 
