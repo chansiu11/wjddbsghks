@@ -1,0 +1,76 @@
+name: Build and publish Meshy facial expressions
+
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-meshy-facial-expressions.yml'
+      - 'scripts/build_meshy_face_morphs.py'
+      - 'scripts/test_meshy_expressions_browser.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: meshy-facial-release
+  cancel-in-progress: false
+
+jobs:
+  build-qa-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate syntax and install test dependencies
+        run: |
+          node --check assets/index.default-ai.js
+          node --check assets/glb-avatar-adapter.js
+          python -m pip install --disable-pip-version-check numpy playwright pillow
+          python -m playwright install --with-deps chromium
+      - name: Build eight forehead, eyelid, lip and smile morphs without touching skin
+        run: |
+          mkdir -p build/meshy-face
+          python scripts/build_meshy_face_morphs.py assets/models/meshy-gilded-vanguard-rigged.glb build/meshy-face/meshy-expressions.glb
+          node scripts/validate_glb_adapter.mjs build/meshy-face/meshy-expressions.glb
+          python - <<'PY'
+          import json,struct,pathlib
+          p=pathlib.Path("build/meshy-face/meshy-expressions.glb")
+          raw=p.read_bytes();length=struct.unpack_from("<I",raw,12)[0]
+          g=json.loads(raw[20:20+length])
+          assert len(g["skins"][0]["joints"])==66
+          assert g["meshes"][0]["extras"]["targetNames"]==[
+             "blink","blinkLeft","blinkRight","mouthOpen","smile","mouthO","mouthE","browUp"]
+          assert len(g["meshes"][0]["primitives"][0]["targets"])==8
+          assert len(raw)<20_000_000
+          print("SAFE_FACE_MORPHS",p,len(raw),flush=True)
+          PY
+      - name: Test real Three.js renderer, Kalidoface tracker and reversible facing
+        run: python scripts/test_meshy_expressions_browser.py build/meshy-face/meshy-expressions.glb
+      - name: Publish only verified facially animated Meshy model
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/meshy-face/meshy-expressions.glb assets/models/meshy-gilded-vanguard-rigged.glb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/models/meshy-gilded-vanguard-rigged.glb
+          git commit -m "Enable verified Meshy eyelid, mouth, smile and eyebrow morph targets"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Pages API rebuild optional"
+      - name: Upload full proof of preview behavior
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshy-face-expression-qa
+          path: |
+            build/meshy-expression-qa/
+            build/meshy-face/meshy-expressions.glb
+          retention-days: 7
+          if-no-files-found: warn
