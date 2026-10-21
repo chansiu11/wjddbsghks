@@ -1,11 +1,9 @@
 name: Build and publish Meshy facial expressions
 
+# Legacy dense-morph builder: only run explicitly for diagnostics.
+# For live deployment, use compact-meshy-avatar.yml, which keeps expressions
+# unchanged but transmits them as efficient sparse glTF accessors.
 on:
-  push:
-    paths:
-      - '.github/workflows/publish-meshy-facial-expressions.yml'
-      - 'scripts/build_meshy_face_morphs.py'
-      - 'scripts/test_meshy_expressions_browser.py'
   workflow_dispatch:
 
 permissions:
