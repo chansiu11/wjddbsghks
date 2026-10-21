@@ -1,4 +1,4 @@
-const CACHE = 'kalidoface-local-v17';
+const CACHE = 'kalidoface-local-v18';
 const CORE = ['./','./global.css','./assets/index.1b91a8e8.css','./assets/index.default-ai.js','./assets/glb-avatar-adapter.js','./assets/glb-texture-compat.js','./assets/vendor.832d142e.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));
