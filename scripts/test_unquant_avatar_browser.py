@@ -23,8 +23,17 @@ async def main():
   page.on("requestfailed",lambda r:errors.append("Request failed "+r.url+" "+str(r.failure)))
   page.on("response",lambda r:responses.append({"status":r.status,"url":r.url,"size":r.headers.get("content-length")}) if (".glb" in r.url or "index.default-ai.js" in r.url) else None)
   async def patch(route):
-   r=await route.fetch()
-   text=await r.text()
+   r=None
+   text=""
+   front_marker="y.isGenericGLB?y.scene.rotation.y=y.isMeshyAvatar?0:Math.PI"
+   for attempt in range(27):
+    r=await route.fetch(url=route.request.url.split("?")[0]+"?meshy-preview=front-v4")
+    text=await r.text()
+    if not MODEL_OVERRIDE or front_marker in text:break
+    print("WAITING_FOR_MESHY_FRONT_BUNDLE",attempt,flush=True)
+    await asyncio.sleep(4)
+   if MODEL_OVERRIDE and front_marker not in text:
+    raise AssertionError("Browser reached obsolete Pages CDN edge")
    print("BUNDLE_SIZE",len(text),flush=True)
    old='z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
    patched='window.__getAvatarCamera=()=>{const active=E(Qn);for(const c of [jt,It,active])c?.updateMatrixWorld?.(true);const props=c=>c?({name:c===jt?"main":c===It?"firstperson":"unknown",position:[c.position.x,c.position.y,c.position.z],world:Array.from(c.matrixWorld.elements).slice(12,15),fov:c.fov,zoom:c.zoom,aspect:c.aspect,near:c.near,far:c.far,forward:[-c.matrixWorld.elements[8],-c.matrixWorld.elements[9],-c.matrixWorld.elements[10]]}):null;return {position:[jt.position.x,jt.position.y,jt.position.z],target:[Dt.target.x,Dt.target.y,Dt.target.z],active:props(active),main:props(jt),first:props(It),mode:E(Ie)};},window.__mountedDefaultAvatar={name:y.name,generic:y.isGenericGLB,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k))},window.__modelRef=y,z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
