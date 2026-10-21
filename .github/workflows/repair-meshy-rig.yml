@@ -38,7 +38,7 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Inspect skinned mesh in real deployed Kalidoface runtime
         run: python scripts/test_unquant_avatar_browser.py build/meshy-repair/meshy-rig-safe.glb
-      - name: Verify front-facing orientation and stable webcam face/arm motion
+      - name: Validate zero-yaw Meshy front and stable webcam face/arm motion
         run: python scripts/test_avatar_height_tracking.py build/meshy-repair/meshy-rig-safe.glb
       - name: Export verified model and screenshots without replacing production
         if: always()
