@@ -1,0 +1,53 @@
+name: Repair distorted Meshy avatar (safe preview)
+on:
+  push:
+    paths:
+      - '.github/workflows/repair-meshy-rig.yml'
+      - 'scripts/recover_meshy_unskinned.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rerig-meshy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out latest model and avatar runtime
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Recover original textured shape; discard manually estimated skin
+        run: |
+          python -m pip install --disable-pip-version-check numpy pillow
+          mkdir -p build/meshy-repair
+          python scripts/recover_meshy_unskinned.py "assets/uploads/Meshy_Gilded_Vanguard_rigged_preview (1).glb" build/meshy-repair/meshy-upright-unskinned.glb
+      - name: Automatically re-rig recovered upright figure
+        run: |
+          timeout 650 npx -y afk-rig auto build/meshy-repair/meshy-upright-unskinned.glb --skeleton human
+          test -s build/meshy-repair/meshy-upright-unskinned.rigged.glb
+      - name: Convert textures without altering auto rig, validate hands and feet
+        run: |
+          python scripts/build_rig_compatible.py build/meshy-repair/meshy-upright-unskinned.rigged.glb build/meshy-repair/meshy-rig-safe.glb 1024
+          node scripts/validate_glb_adapter.mjs build/meshy-repair/meshy-rig-safe.glb
+      - name: Prepare browser-based renderer and tracking tests
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Inspect skinned mesh in real deployed Kalidoface runtime
+        run: python scripts/test_unquant_avatar_browser.py build/meshy-repair/meshy-rig-safe.glb
+      - name: Check webcam body/face tracking retargeting does not bend the model
+        run: python scripts/test_avatar_height_tracking.py build/meshy-repair/meshy-rig-safe.glb
+      - name: Export verified model and screenshots without replacing production
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshy-corrected-rig-review
+          path: |
+            build/meshy-repair/meshy-rig-safe.glb
+            build/noquant-avatar-qa/
+            build/height-regression/
+          retention-days: 7
+          if-no-files-found: warn
