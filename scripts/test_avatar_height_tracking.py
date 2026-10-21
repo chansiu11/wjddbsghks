@@ -49,12 +49,14 @@ async def visit(browser,label,width,height):
             const hip=y.humanoid.getBoneNode("Hips");
             const neck=y.humanoid.getBoneNode("Neck");
             const head=y.humanoid.getBoneNode("Head");
+            const leftFoot=y.humanoid.getBoneNode("LeftFoot"),rightFoot=y.humanoid.getBoneNode("RightFoot");
             y.scene.updateMatrixWorld(true);
-            const h=new rl,p=new rl;
+            const h=new rl,p=new rl,lf=new rl,rf=new rl;
+            leftFoot.getWorldPosition(lf);rightFoot.getWorldPosition(rf);
             hip.getWorldPosition(h);head.getWorldPosition(p);
             const s=E(V).user;
             return {hipY:hip.position.y,baseY:y.humanoid.restPose.hips.position[1],
-              hipWorldY:h.y,headWorldY:p.y,sceneY:y.scene.position.y,
+              hipWorldY:h.y,headWorldY:p.y,footWorldY:[lf.y,rf.y],sceneY:y.scene.position.y,
               neckQuat:neck?[neck.quaternion.x,neck.quaternion.y,neck.quaternion.z,neck.quaternion.w]:null,
               hipQuat:[hip.quaternion.x,hip.quaternion.y,hip.quaternion.z,hip.quaternion.w],
               detected:s.detected,poseEnabled:s.tracking.Pose.enable};
@@ -64,7 +66,7 @@ async def visit(browser,label,width,height):
             s.user.detected=enabled;
             if(enabled){
               const p=s.user.tracking.Pose;
-              p.enable=true;
+              p.enable=true;p.legsTracked=false; // Only face visible; ankles and knees are off-screen.
               p.RightUpperLeg.z=.75;p.LeftUpperLeg.z=.72;
               p.RightUpperArm.z=.3;p.LeftUpperArm.z=-.3;
               p.Hips.position.x=.04;p.Hips.position.z=.1;
@@ -97,24 +99,28 @@ async def visit(browser,label,width,height):
     dy=max(abs(v["hipY"]-initial["hipY"]) for v in samples)
     world_dy=max(abs(v["hipWorldY"]-initial["hipWorldY"]) for v in samples)
     scene_dy=max(abs(v["sceneY"]-initial["sceneY"]) for v in samples)
+    feet_dy=max(max(abs(a-b) for a,b in zip(v["footWorldY"],initial["footWorldY"])) for v in samples)
+    head_dy=max(abs(v["headWorldY"]-initial["headWorldY"]) for v in samples)
     detected_count=sum(bool(v["detected"]) for v in samples)
     hip_rotation_delta=max(max(abs(a-b) for a,b in zip(x["hipQuat"],initial["hipQuat"])) for x in samples)
     neck_rotation_delta=max(max(abs(a-b) for a,b in zip(x["neckQuat"],initial["neckQuat"])) for x in samples if x["neckQuat"])
     report={"initial":initial,"samples":samples,"after":after,
             "hipLocalMaxDelta":dy,"hipWorldMaxDelta":world_dy,"sceneMaxDelta":scene_dy,
             "detectedSamples":detected_count,"hipRotationMaxDelta":hip_rotation_delta,
-            "neckRotationMaxDelta":neck_rotation_delta,"assetStatus":asset_status,"errors":errors,"console":console[-10:]}
+            "neckRotationMaxDelta":neck_rotation_delta,"feetMaxDelta":feet_dy,"headMaxDelta":head_dy,"assetStatus":asset_status,"errors":errors,"console":console[-10:]}
     (OUT/(label+".json")).write_text(json.dumps(report,ensure_ascii=False,indent=2))
     print("REGRESSION",label,json.dumps({
         "hipLocalMaxDelta":dy,"hipWorldMaxDelta":world_dy,"sceneMaxDelta":scene_dy,
         "detectedSamples":detected_count,"hipRotationMaxDelta":hip_rotation_delta,
-        "neckRotationMaxDelta":neck_rotation_delta,"assets":asset_status,"errors":errors[-5:]},ensure_ascii=False),flush=True)
+        "neckRotationMaxDelta":neck_rotation_delta,"feetMaxDelta":feet_dy,"headMaxDelta":head_dy,"assets":asset_status,"errors":errors[-5:]},ensure_ascii=False),flush=True)
     await ctx.close()
     assert detected_count>4,"Did not exercise face-detected tracking path"
     assert dy<0.015,f"Generic GLB hips drift during face detection: {dy}"
     assert world_dy<0.5,f"Avatar flies up when tracked: {world_dy}"
     assert scene_dy<0.04,f"Avatar origin unexpectedly moves up: {scene_dy}"
     assert hip_rotation_delta<0.005,f"GLB pelvis was rotated by old VRM animation: {hip_rotation_delta}"
+    assert feet_dy<0.1,f"Face-only detection caused untracked feet to fly: {feet_dy}"
+    assert head_dy<0.25,f"Face-only detection shifted the avatar head vertically: {head_dy}"
     assert neck_rotation_delta>0.03,"Face tracking did not animate the neck"
     assert asset_status and any(r["status"]==200 for r in asset_status),"No model asset"
     assert not any("Character model import failed" in x for x in console),"GLB import error"
