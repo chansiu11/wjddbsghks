@@ -30,6 +30,10 @@ async def main():
    patched='window.__getAvatarCamera=()=>{const active=E(Qn);for(const c of [jt,It,active])c?.updateMatrixWorld?.(true);const props=c=>c?({name:c===jt?"main":c===It?"firstperson":"unknown",position:[c.position.x,c.position.y,c.position.z],world:Array.from(c.matrixWorld.elements).slice(12,15),fov:c.fov,zoom:c.zoom,aspect:c.aspect,near:c.near,far:c.far,forward:[-c.matrixWorld.elements[8],-c.matrixWorld.elements[9],-c.matrixWorld.elements[10]]}):null;return {position:[jt.position.x,jt.position.y,jt.position.z],target:[Dt.target.x,Dt.target.y,Dt.target.z],active:props(active),main:props(jt),first:props(It),mode:E(Ie)};},window.__mountedDefaultAvatar={name:y.name,generic:y.isGenericGLB,bones:["Hips","Head","LeftHand","RightHand","LeftIndexProximal","RightIndexProximal"].map(k=>!!y.humanoid.getBoneNode(k))},window.__modelRef=y,z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
    if text.count(old)!=1: raise AssertionError(f"hook missing, count={text.count(old)}")
    text=text.replace(old,patched)
+   if MODEL_OVERRIDE and "meshy" in MODEL_OVERRIDE.name.lower():
+    rig_call='createGenericGLBAvatar(g,v.name||"Model.glb")'
+    assert text.count(rig_call)==1
+    text=text.replace(rig_call,'createGenericGLBAvatar(g,"Meshy Gilded Vanguard.glb")')
    old_err='console.error("Character model import failed",err)'
    text=text.replace(old_err,'window.__avatarLoadError=String(err?.message||err),console.error("Character model import failed",err)')
    await route.fulfill(response=r,body=text,headers={**r.headers,"cache-control":"no-store"})
