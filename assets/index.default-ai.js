@@ -46,7 +46,7 @@ const meshFlipPanel=(show)=>{let btn=document.getElementById("meshy-facing-flip"
  if(!btn){btn=document.createElement("button");btn.id="meshy-facing-flip";btn.type="button";
  btn.textContent="↻ 캐릭터 앞뒤 전환";btn.setAttribute("aria-label","캐릭터 앞뒤 전환");
  btn.style.cssText="position:fixed;left:12px;top:12px;z-index:10000;background:#192839cc;color:white;border:1px solid #ffffff66;border-radius:9px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 12px #0003";
- btn.addEventListener("click",()=>{const flipped=!meshFacing();try{localStorage.setItem("meshy-avatar-flipped",flipped?"1":"0")}catch{};btn.title=flipped?"방향 반전됨":"기본 정면";});
+ btn.addEventListener("click",()=>{const flipped=!meshFacing();try{localStorage.setItem("meshy-avatar-flipped",flipped?"1":"0")}catch{};const active=E(V).user.model;active?.isMeshyAvatar&&(active.scene.rotation.y=flipped?Math.PI:0);btn.title=flipped?"방향 반전됨":"기본 정면";});
  document.body.appendChild(btn)}
  btn.style.display=show?"block":"none";
 };
