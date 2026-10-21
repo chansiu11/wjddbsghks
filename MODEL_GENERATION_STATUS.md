@@ -1,3 +1,17 @@
+# Current default: corrected Meshy Gilded Vanguard (2026-10-21)
+
+- **Live site:** https://chansiu11.github.io/wjddbsghks/
+- **Current default model:** `assets/models/meshy-gilded-vanguard-rigged.glb`, 7,030,508 bytes.
+- **Previous default preserved:** `assets/models/fan-ksante-ai.glb` and remains in the avatar picker.
+- **Cause of prior deformation:** old `assets/uploads/Meshy_Gilded_Vanguard_rigged_preview (1).glb` used manually approximated skin weights; GLB format and neutral bind checks alone were insufficient.
+- **Correction:** `scripts/recover_meshy_unskinned.py` restores upright original Meshy geometry, discards unreliable skin weights; `afk-rig auto ... --skeleton human` rebuilds 66 joints and their skin weights; `build_rig_compatible.py` keeps real inverse bind matrices while compressing textures.
+- **Visual correction:** Meshy is front-facing at yaw 0. The generic model adapter marks its type independently from existing VRM avatars; the live default script and service worker were cache-busted.
+- **Confirmed live QA:** workflow [39534077329](https://github.com/chansiu11/wjddbsghks/actions/runs/39534077329) completed successfully. Skinned scene loads via HTTP 200; 49 mapped torso/limb/finger bones, upright height and camera bounds; desktop/mobile synthetic face and arm tracking with stable feet/hips and nonzero neck motion. Live screenshots captured.
+- **Not verified:** actual human webcam tracking on user's specific device, facial mouth/blink morph targets, high-quality authored secondary hair/cloth rigging. The new 66-joint stable model has **no accessory spring helper bones**, so accessory springs do not run; this is deliberate to prevent reintroducing mesh distortion. Manual sculpting/skin weights may still be needed for production-quality movement.
+- **Safety:** `install-meshy-candidate.yml` has its unsafe old manual-skin deployment disabled. Repaired Meshy model publishing is gated on browser QA and a verified artifact.
+
+---
+
 # Default AI fan avatar — implementation status (2026-10-20)
 
 ## Deployed and browser-verified
