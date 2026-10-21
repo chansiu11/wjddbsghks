@@ -60,6 +60,7 @@ async def visit(browser,label,width,height):
             const neck=y.humanoid.getBoneNode("Neck");
             const head=y.humanoid.getBoneNode("Head");
             const leftFoot=y.humanoid.getBoneNode("LeftFoot"),rightFoot=y.humanoid.getBoneNode("RightFoot");
+            const leftArm=y.humanoid.getBoneNode("LeftUpperArm"),rightArm=y.humanoid.getBoneNode("RightUpperArm");
             y.scene.updateMatrixWorld(true);
             const h=new rl,p=new rl,lf=new rl,rf=new rl;
             leftFoot.getWorldPosition(lf);rightFoot.getWorldPosition(rf);
@@ -69,6 +70,8 @@ async def visit(browser,label,width,height):
               hipWorldY:h.y,headWorldY:p.y,footWorldY:[lf.y,rf.y],sceneY:y.scene.position.y,
               neckQuat:neck?[neck.quaternion.x,neck.quaternion.y,neck.quaternion.z,neck.quaternion.w]:null,
               hipQuat:[hip.quaternion.x,hip.quaternion.y,hip.quaternion.z,hip.quaternion.w],
+              armQuats:[[leftArm.quaternion.x,leftArm.quaternion.y,leftArm.quaternion.z,leftArm.quaternion.w],[rightArm.quaternion.x,rightArm.quaternion.y,rightArm.quaternion.z,rightArm.quaternion.w]],
+              armsTracked:s.tracking.Pose.armsTracked||null,
               detected:s.detected,poseEnabled:s.tracking.Pose.enable,
               springBones:y.secondaryMotion?.bones||[],
               isMeshy:y.isMeshyAvatar||false, sceneRotation:y.scene.rotation.y};
@@ -120,15 +123,16 @@ async def visit(browser,label,width,height):
     detected_count=sum(bool(v["detected"]) for v in samples)
     hip_rotation_delta=max(max(abs(a-b) for a,b in zip(x["hipQuat"],initial["hipQuat"])) for x in samples)
     neck_rotation_delta=max(max(abs(a-b) for a,b in zip(x["neckQuat"],initial["neckQuat"])) for x in samples if x["neckQuat"])
+    arm_rotation_delta=max(abs(a-b) for x in samples for aa,bb in zip(x["armQuats"],initial["armQuats"]) for a,b in zip(aa,bb))
     report={"initial":initial,"samples":samples,"after":after,
             "hipLocalMaxDelta":dy,"hipWorldMaxDelta":world_dy,"sceneMaxDelta":scene_dy,
             "detectedSamples":detected_count,"hipRotationMaxDelta":hip_rotation_delta,
-            "neckRotationMaxDelta":neck_rotation_delta,"feetMaxDelta":feet_dy,"headMaxDelta":head_dy,"assetStatus":asset_status,"errors":errors,"console":console[-10:]}
+            "neckRotationMaxDelta":neck_rotation_delta,"armRotationMaxDelta":arm_rotation_delta,"feetMaxDelta":feet_dy,"headMaxDelta":head_dy,"assetStatus":asset_status,"errors":errors,"console":console[-10:]}
     (OUT/(label+".json")).write_text(json.dumps(report,ensure_ascii=False,indent=2))
     print("REGRESSION",label,json.dumps({
         "hipLocalMaxDelta":dy,"hipWorldMaxDelta":world_dy,"sceneMaxDelta":scene_dy,
         "detectedSamples":detected_count,"hipRotationMaxDelta":hip_rotation_delta,
-        "neckRotationMaxDelta":neck_rotation_delta,"feetMaxDelta":feet_dy,"headMaxDelta":head_dy,"assets":asset_status,"errors":errors[-5:]},ensure_ascii=False),flush=True)
+        "neckRotationMaxDelta":neck_rotation_delta,"armRotationMaxDelta":arm_rotation_delta,"feetMaxDelta":feet_dy,"headMaxDelta":head_dy,"assets":asset_status,"errors":errors[-5:]},ensure_ascii=False),flush=True)
     await ctx.close()
     assert detected_count>4,"Did not exercise face-detected tracking path"
     assert dy<0.015,f"Generic GLB hips drift during face detection: {dy}"
@@ -140,6 +144,7 @@ async def visit(browser,label,width,height):
     assert neck_rotation_delta>0.03,"Face tracking did not animate the neck"
     if CANDIDATE and "meshy" in CANDIDATE.name.lower() or LIVE_MESHY:
         assert initial["isMeshy"],"Did not recognize Meshy avatar orientation"
+        assert arm_rotation_delta<0.06,f"Face-only tracking incorrectly raises or twists arms: {arm_rotation_delta}"
         assert abs(after["sceneRotation"])<0.001,"Meshy should face the camera at its neutral yaw"
     assert asset_status and any(r["status"]==200 for r in asset_status),"No model asset"
     assert not any("Character model import failed" in x for x in console),"GLB import error"
