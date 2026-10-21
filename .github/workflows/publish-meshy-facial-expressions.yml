@@ -68,10 +68,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/models/meshy-gilded-vanguard-rigged.glb
-          git commit -m "Enable verified Meshy eyelid, mouth, smile and eyebrow morph targets"
-          git pull --rebase origin main
-          git push origin HEAD:main
-          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Pages API rebuild optional"
+          if git diff --cached --quiet; then
+            echo "Facial mesh unchanged after verified rebuild; no unnecessary commit."
+          else
+            git commit -m "Enable verified Meshy eyelid, mouth, smile and eyebrow morph targets"
+            git pull --rebase origin main
+            git push origin HEAD:main
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Pages API rebuild optional"
+          fi
       - name: Upload full proof of preview behavior
         if: always()
         uses: actions/upload-artifact@v4
