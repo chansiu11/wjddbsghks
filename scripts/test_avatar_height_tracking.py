@@ -98,9 +98,17 @@ async def visit(browser,label,width,height):
         async def override_avatar(route):
             await route.fulfill(path=str(CANDIDATE),status=200,content_type="model/gltf-binary")
         await page.route("**/assets/models/fan-ksante-ai.glb*",override_avatar)
-    response=await page.goto(BASE,wait_until="domcontentloaded",timeout=45000)
+    response=None
+    for attempt in range(3):
+        try:
+            response=await page.goto(BASE,wait_until="commit",timeout=85000)
+            break
+        except Exception as ex:
+            print("RETRY_LIVE_PAGES_NAVIGATION",label,attempt,str(ex)[:170],flush=True)
+            if attempt==2:raise
+            await asyncio.sleep(3)
     if not response or response.status!=200:raise RuntimeError("Live page failed to open")
-    await page.wait_for_function("() => !!window.__heightProbe",timeout=45000)
+    await page.wait_for_function("() => !!window.__heightProbe",timeout=75000)
     await page.wait_for_timeout(600)
     initial=await page.evaluate("() => window.__heightProbe.info()")
     print("INITIAL",label,json.dumps(initial),flush=True)
