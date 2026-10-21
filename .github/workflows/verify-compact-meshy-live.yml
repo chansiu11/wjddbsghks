@@ -1,0 +1,52 @@
+name: Verify compact Meshy production startup
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-compact-meshy-live.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-response:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check actual Pages HTML, JS and compressed 3D asset
+        run: |
+          python - <<'PY'
+          import json,struct,time,urllib.request
+          root='https://chansiu11.github.io/wjddbsghks/'
+          def get(path):
+              req=urllib.request.Request(root+path,headers={
+                 'Cache-Control':'no-cache','User-Agent':'MeshyPagesHealthCheck/1.0'
+              })
+              a=time.monotonic()
+              with urllib.request.urlopen(req,timeout=40) as r:
+                  result=r.read()
+                  assert r.status==200
+              return result,round(time.monotonic()-a,3)
+          for attempt in range(35):
+              try:
+                  html,html_sec=get('?test=compact-faces-20261021')
+                  js,js_sec=get('assets/index.default-ai.js?test=compact-faces-20261021')
+                  assert b'meshy-compact-20261021' in html
+                  assert b'morph-sparse-20261021' in js
+                  assert html.count(b' defer crossorigin="anonymous"')==3
+                  print('LATEST_HTML_AND_APP_VERIFIED',len(html),len(js),html_sec,js_sec,flush=True)
+                  break
+              except Exception as ex:
+                  print('Waiting for all Pages edges',attempt,str(ex)[:180],flush=True)
+                  time.sleep(5)
+          else:raise SystemExit('Public site did not deploy faster-loading app')
+          glb,glb_sec=get('assets/models/meshy-gilded-vanguard-rigged.glb?morph-sparse-20261021')
+          assert glb[:4]==b'glTF'
+          assert len(glb)<8_400_000 and len(glb)>6_000_000,len(glb)
+          n=struct.unpack_from('<I',glb,12)[0]
+          data=json.loads(glb[20:20+n])
+          morph=[data['accessors'][t['POSITION']] for t in data['meshes'][0]['primitives'][0]['targets']]
+          assert len(morph)==8 and all('sparse' in m for m in morph)
+          assert len(data['skins'][0]['joints'])==66
+          print('LIVE_COMPACT_GLB_VERIFIED',len(glb),'bytes','fetch_seconds_from_GitHub_runner',glb_sec,flush=True)
+          PY
