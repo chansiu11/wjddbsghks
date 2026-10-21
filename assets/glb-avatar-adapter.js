@@ -138,8 +138,16 @@ export function createGenericGLBAvatar(gltf, filename="Character.glb") {
   const springs=springNames.map(([name,stiffness,damping,inertia])=>{
     const bone=bones.find(entry=>entry.clean===normalize(name))?.bone;
     if(!bone||!bone.parent||!bone.quaternion)return null;
-    return {bone,rest:bone.quaternion.clone(),parent:bone.parent,
-      last:bone.parent.quaternion.clone(),vx:0,vz:0,angleX:0,angleZ:0,
+    // Read the world orientation of the moving ancestor, not the helper's
+    // immediate local parent: Kalidoface rotates neck/spine while pelvis/head
+    // may stay at their neutral *local* quaternion.
+    const driver=name.startsWith("hair")
+      ? (map[normalize("Neck")]||bone.parent)
+      : (map[normalize("Chest")]||bone.parent);
+    driver.updateWorldMatrix?.(true,false);
+    const worldQ=driver.getWorldQuaternion?.(bone.quaternion.clone())||driver.quaternion.clone();
+    return {bone,rest:bone.quaternion.clone(),driver,
+      last:worldQ,vx:0,vz:0,angleX:0,angleZ:0,
       stiffness,damping,inertia};
   }).filter(Boolean);
   function stepSpringBones(delta){
@@ -148,7 +156,8 @@ export function createGenericGLBAvatar(gltf, filename="Character.glb") {
     // spring integration, while preserving energy from small head movements.
     const dt=Math.max(0.001,Math.min(delta,1/30));
     for(const spring of springs){
-      const q=spring.parent.quaternion;
+      spring.driver.updateWorldMatrix?.(true,false);
+      const q=spring.driver.getWorldQuaternion?.(spring.rest.clone())||spring.driver.quaternion.clone();
       const diff=q.clone().multiply(spring.last.clone().invert());
       spring.last.copy(q);
       // Quaternion shortest arc, converted to a modest velocity impulse.
