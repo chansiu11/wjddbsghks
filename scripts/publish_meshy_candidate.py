@@ -2,7 +2,7 @@
 """Switch to a verified user-supplied Meshy GLB; preserve prior default as fallback."""
 from pathlib import Path
 import re,shutil
-candidate=Path("assets/uploads/meshy-candidate.glb")
+candidate=Path("assets/uploads/Meshy_Gilded_Vanguard_rigged_preview.glb")
 target=Path("assets/models/meshy-gilded-vanguard-rigged.glb")
 assert candidate.is_file()
 target.parent.mkdir(parents=True,exist_ok=True)
