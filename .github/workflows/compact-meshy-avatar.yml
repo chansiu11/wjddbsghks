@@ -1,0 +1,107 @@
+name: Optimize Meshy startup without changing appearance
+
+on:
+  push:
+    paths:
+      - '.github/workflows/compact-meshy-avatar.yml'
+      - 'scripts/compact_meshy_morphs.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: meshy-compact-production
+  cancel-in-progress: false
+
+jobs:
+  compact-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Set up browser and morph-array validator
+        run: |
+          python -m pip install --disable-pip-version-check numpy playwright
+          python -m playwright install --with-deps chromium
+          node --check assets/index.default-ai.js
+          node --check assets/glb-avatar-adapter.js
+      - name: Convert 8 dense facial morphs to tiny lossless sparse morphs
+        run: |
+          mkdir -p build/compact-meshy
+          python scripts/compact_meshy_morphs.py assets/models/meshy-gilded-vanguard-rigged.glb build/compact-meshy/meshy-compact.glb
+          node scripts/validate_glb_adapter.mjs build/compact-meshy/meshy-compact.glb
+          python - <<'PY'
+          import struct,json,pathlib
+          original=pathlib.Path('assets/models/meshy-gilded-vanguard-rigged.glb')
+          optimized=pathlib.Path('build/compact-meshy/meshy-compact.glb')
+          data=optimized.read_bytes()
+          n=struct.unpack_from('<I',data,12)[0]
+          doc=json.loads(data[20:20+n])
+          morphs=[doc['accessors'][a['POSITION']] for a in doc['meshes'][0]['primitives'][0]['targets']]
+          assert len(morphs)==8 and all('sparse' in x for x in morphs)
+          assert len(doc['skins'][0]['joints'])==66
+          assert optimized.stat().st_size<original.stat().st_size*.65, 'No meaningful network savings'
+          assert optimized.stat().st_size<8_400_000
+          print('OPTIMIZED_MESHY_ASSET',original.stat().st_size,optimized.stat().st_size,flush=True)
+          PY
+      - name: Check real blink, lips, smile, brows and front/back rotation
+        run: python scripts/test_meshy_expressions_browser.py build/compact-meshy/meshy-compact.glb
+      - name: Check face recognition does not move hips/feet on desktop/mobile
+        run: python scripts/test_avatar_height_tracking.py build/compact-meshy/meshy-compact.glb
+      - name: Publish compact model and versioned URL only when QA passes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build/compact-meshy/meshy-compact.glb assets/models/meshy-gilded-vanguard-rigged.glb
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          app=Path('assets/index.default-ai.js')
+          s=app.read_text()
+          plain='./assets/models/meshy-gilded-vanguard-rigged.glb'
+          tagged=plain+'?morph-sparse-20261021'
+          if tagged not in s:
+              assert s.count(plain)==1,'Expected one default Meshy model entry'
+              s=s.replace(plain,tagged)
+          app.write_text(s)
+          sw=Path('sw.js')
+          txt=sw.read_text()
+          change=re.sub(r'kalidoface-local-v(\d+)',
+              lambda match:'kalidoface-local-v'+str(int(match.group(1))+1),txt,count=1)
+          assert change!=txt
+          sw.write_text(change)
+          html=Path('index.html')
+          page=html.read_text()
+          page=re.sub(r'index\.default-ai\.js\?[^"]+', 'index.default-ai.js?meshy-compact-20261021', page)
+          assert 'index.default-ai.js?meshy-compact-20261021' in page
+          html.write_text(page)
+          PY
+          node --check assets/index.default-ai.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/models/meshy-gilded-vanguard-rigged.glb assets/index.default-ai.js sw.js index.html
+          git commit -m "Reduce Meshy avatar download ~50% with lossless sparse face morphs and faster bootstrap"
+          git pull --rebase origin main
+          git push origin HEAD:main
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" || echo "Pages auto-build is already configured"
+      - name: Save real Chromium screenshots and optimized model
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshy-compact-startup-verification
+          path: |
+            build/compact-meshy/
+            build/meshy-expression-qa/
+            build/height-regression/
+          retention-days: 7
+          if-no-files-found: warn
