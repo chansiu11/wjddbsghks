@@ -93,9 +93,11 @@ async def main():
    recovered=await page.evaluate("()=>window.__faceQa.state()")
    print("EXPRESSION_LOST_TRACKING",name,json.dumps(recovered),flush=True)
    assert max(recovered["values"].values())<.06,"Expression persists after camera loses face"
-   await page.evaluate("()=>window.__faceQa.set(.5,.7,.65,.5)")
-   await page.wait_for_timeout(400)
+   for _ in range(12):
+    await page.evaluate("()=>window.__faceQa.set(.5,.7,.65,.5)")
+    await page.wait_for_timeout(115)
    resumed=await page.evaluate("()=>window.__faceQa.state()")
+   print("EXPRESSION_REACQUIRED",name,json.dumps(resumed),flush=True)
    assert resumed["values"].get("mouthOpen",0)>.22,"Mouth did not recover after face tracking reappeared"
    await page.click("#meshy-facing-flip")
    await page.wait_for_timeout(300)
