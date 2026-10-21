@@ -7,7 +7,7 @@ ROOT="https://chansiu11.github.io/wjddbsghks/"
 MODEL=Path(sys.argv[1]).resolve()
 assert MODEL.is_file() and MODEL.stat().st_size>10_000_000
 OUT=Path("build/meshy-expression-qa");OUT.mkdir(parents=True,exist_ok=True)
-EXPECTED="const meshFlipPanel=(show)=>"
+EXPECTED=["const meshFlipPanel=(show)=>","n.setValue(i.Blink,c-(l.isMeshyAvatar?0:r))"]
 NAMES={"blink","blinkLeft","blinkRight","mouthOpen","smile","mouthO","mouthE","browUp"}
 async def main():
  async with async_playwright() as pw:
@@ -24,11 +24,11 @@ async def main():
    async def source_patch(route):
     response=None;source=""
     for attempt in range(20):
-     response=await route.fetch(url=route.request.url.split("?")[0]+"?meshy-expression-ready=v1")
+     response=await route.fetch(url=route.request.url.split("?")[0]+"?meshy-expression-ready=v2")
      source=await response.text()
-     if EXPECTED in source:break
+     if all(marker in source for marker in EXPECTED):break
      await asyncio.sleep(3)
-    if EXPECTED not in source:raise AssertionError("Expression loader not deployed")
+    if not all(marker in source for marker in EXPECTED):raise AssertionError("Face blink/smile correction not deployed on Pages CDN")
     hook='z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
     assert source.count(hook)==1
     fixture="""window.__faceQa={
