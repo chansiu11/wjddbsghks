@@ -137,7 +137,7 @@ async def visit(browser,label,width,height):
     assert neck_rotation_delta>0.03,"Face tracking did not animate the neck"
     if CANDIDATE and "meshy" in CANDIDATE.name.lower():
         assert initial["isMeshy"],"Did not recognize Meshy avatar orientation"
-        assert abs(after["sceneRotation"]-3.141592653589793)<0.001,"Avatar still faces away from camera"
+        assert abs(after["sceneRotation"])<0.001,"Meshy should face the camera at its neutral yaw"
     assert asset_status and any(r["status"]==200 for r in asset_status),"No model asset"
     assert not any("Character model import failed" in x for x in console),"GLB import error"
 
