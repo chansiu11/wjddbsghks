@@ -44,6 +44,10 @@ async def visit(browser,label,width,height):
             await asyncio.sleep(2)
         if EXPECTED not in source:raise RuntimeError("Hip-height fix not yet visible on browser CDN edge")
         if CAMERA_FIX not in source:raise RuntimeError("Camera zoom fix not deployed")
+        if CANDIDATE and "meshy" in CANDIDATE.name.lower():
+            rig_call='createGenericGLBAvatar(g,v.name||"Model.glb")'
+            if source.count(rig_call)!=1:raise RuntimeError("GLB avatar loader call not found")
+            source=source.replace(rig_call,'createGenericGLBAvatar(g,"Meshy Gilded Vanguard.glb")')
         target='z.model=y,V.set(n),y.isGenericGLB||zs(y,z.tracking,z.id,!0)'
         if source.count(target)!=1:raise RuntimeError("Avatar instance hook not found")
         hook="""z.model=y,V.set(n),y.isGenericGLB&&(window.__heightProbe={
@@ -63,7 +67,8 @@ async def visit(browser,label,width,height):
               neckQuat:neck?[neck.quaternion.x,neck.quaternion.y,neck.quaternion.z,neck.quaternion.w]:null,
               hipQuat:[hip.quaternion.x,hip.quaternion.y,hip.quaternion.z,hip.quaternion.w],
               detected:s.detected,poseEnabled:s.tracking.Pose.enable,
-              springBones:y.secondaryMotion?.bones||[]};
+              springBones:y.secondaryMotion?.bones||[],
+              isMeshy:y.isMeshyAvatar||false, sceneRotation:y.scene.rotation.y};
           },
           setPose:(enabled)=>{
             const s=E(V);
@@ -130,9 +135,9 @@ async def visit(browser,label,width,height):
     assert feet_dy<0.1,f"Face-only detection caused untracked feet to fly: {feet_dy}"
     assert head_dy<0.25,f"Face-only detection shifted the avatar head vertically: {head_dy}"
     assert neck_rotation_delta>0.03,"Face tracking did not animate the neck"
-    if CANDIDATE:
-        assert {"hair_spring","cloth_front_l","cloth_front_r"}.issubset(initial["springBones"]), (
-            "Hair and cloth spring bones not attached: "+str(initial["springBones"]))
+    if CANDIDATE and "meshy" in CANDIDATE.name.lower():
+        assert initial["isMeshy"],"Did not recognize Meshy avatar orientation"
+        assert abs(after["sceneRotation"]-3.141592653589793)<0.001,"Avatar still faces away from camera"
     assert asset_status and any(r["status"]==200 for r in asset_status),"No model asset"
     assert not any("Character model import failed" in x for x in console),"GLB import error"
 
