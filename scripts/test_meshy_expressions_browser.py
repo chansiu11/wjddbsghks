@@ -5,7 +5,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 ROOT="https://chansiu11.github.io/wjddbsghks/"
 MODEL=Path(sys.argv[1]).resolve()
-assert MODEL.is_file() and MODEL.stat().st_size>10_000_000
+assert MODEL.is_file() and MODEL.stat().st_size>5_000_000  # Compact sparse-morph GLBs are deliberately smaller.
 OUT=Path("build/meshy-expression-qa");OUT.mkdir(parents=True,exist_ok=True)
 EXPECTED=["const meshFlipPanel=(show)=>","n.setValue(i.Blink,c-(l.isMeshyAvatar?0:r))","active?.isMeshyAvatar&&(active.scene.rotation.y=flipped?Math.PI:0)"]
 NAMES={"blink","blinkLeft","blinkRight","mouthOpen","smile","mouthO","mouthE","browUp"}
