@@ -6,6 +6,8 @@ on:
       - '.github/workflows/publish-meshy-facial-expressions.yml'
       - 'scripts/build_meshy_face_morphs.py'
       - 'scripts/test_meshy_expressions_browser.py'
+      - 'assets/index.default-ai.js'
+      - 'assets/glb-avatar-adapter.js'
   workflow_dispatch:
 
 permissions:
