@@ -6,10 +6,13 @@ Use synthetic landmark input to exercise the exact Kalidoface runtime tracking p
 """
 import asyncio
 import json
+import sys
 from pathlib import Path
 from playwright.async_api import async_playwright
 
 BASE="https://chansiu11.github.io/wjddbsghks/"
+CANDIDATE=Path(sys.argv[1]).resolve() if len(sys.argv)>1 else None
+if CANDIDATE:assert CANDIDATE.is_file() and CANDIDATE.stat().st_size>500000
 OUT=Path("build/height-regression")
 OUT.mkdir(parents=True,exist_ok=True)
 EXPECTED='if(l.isGenericGLB){const anchor=l.humanoid.restPose.hips.position;o.position.set(anchor[0],anchor[1],anchor[2]);return}'
@@ -59,7 +62,8 @@ async def visit(browser,label,width,height):
               hipWorldY:h.y,headWorldY:p.y,footWorldY:[lf.y,rf.y],sceneY:y.scene.position.y,
               neckQuat:neck?[neck.quaternion.x,neck.quaternion.y,neck.quaternion.z,neck.quaternion.w]:null,
               hipQuat:[hip.quaternion.x,hip.quaternion.y,hip.quaternion.z,hip.quaternion.w],
-              detected:s.detected,poseEnabled:s.tracking.Pose.enable};
+              detected:s.detected,poseEnabled:s.tracking.Pose.enable,
+              springBones:y.secondaryMotion?.bones||[]};
           },
           setPose:(enabled)=>{
             const s=E(V);
@@ -79,6 +83,10 @@ async def visit(browser,label,width,height):
         source=source.replace(target,hook)
         await route.fulfill(response=response,body=source,headers={**response.headers,"cache-control":"no-store"})
     await page.route("**/assets/index.default-ai.js*",instrument)
+    if CANDIDATE:
+        async def override_avatar(route):
+            await route.fulfill(path=str(CANDIDATE),status=200,content_type="model/gltf-binary")
+        await page.route("**/assets/models/fan-ksante-ai.glb*",override_avatar)
     response=await page.goto(BASE,wait_until="domcontentloaded",timeout=45000)
     if not response or response.status!=200:raise RuntimeError("Live page failed to open")
     await page.wait_for_function("() => !!window.__heightProbe",timeout=45000)
@@ -122,6 +130,9 @@ async def visit(browser,label,width,height):
     assert feet_dy<0.1,f"Face-only detection caused untracked feet to fly: {feet_dy}"
     assert head_dy<0.25,f"Face-only detection shifted the avatar head vertically: {head_dy}"
     assert neck_rotation_delta>0.03,"Face tracking did not animate the neck"
+    if CANDIDATE:
+        assert {"hair_spring","cloth_front_l","cloth_front_r"}.issubset(initial["springBones"]), (
+            "Hair and cloth spring bones not attached: "+str(initial["springBones"]))
     assert asset_status and any(r["status"]==200 for r in asset_status),"No model asset"
     assert not any("Character model import failed" in x for x in console),"GLB import error"
 
