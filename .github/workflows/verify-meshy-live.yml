@@ -1,0 +1,58 @@
+name: Verify deployed Meshy avatar in browser
+on:
+  push:
+    paths:
+      - '.github/workflows/verify-meshy-live.yml'
+      - 'scripts/test_deployed_meshy_live.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Wait for published JS and new model asset
+        run: |
+          python - <<'PY'
+          import urllib.request,time
+          root='https://chansiu11.github.io/wjddbsghks/'
+          for i in range(46):
+              try:
+                  req=urllib.request.Request(root+'assets/index.default-ai.js?meshy-live-v5',headers={'Cache-Control':'no-cache'})
+                  with urllib.request.urlopen(req,timeout=15) as resp:code=resp.read().decode()
+                  if 'Yt=[{id:98,name:"Meshy Gilded Vanguard"' not in code:
+                      raise RuntimeError('Not yet default')
+                  with urllib.request.urlopen(root+'assets/models/meshy-gilded-vanguard-rigged.glb?test=1',timeout=30) as r:
+                      sig=r.read(4);assert r.status==200 and sig==b'glTF'
+                  print('PRODUCTION_MESHY_READY',flush=True)
+                  break
+              except Exception as e:
+                  print('Waiting for GitHub Pages',i,str(e)[:110],flush=True)
+                  time.sleep(6)
+          else:raise SystemExit('Repaired Meshy asset not deployed')
+          PY
+      - name: Install Playwright browser
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Check actual public default model and upright render
+        run: python scripts/test_deployed_meshy_live.py
+      - name: Check live face/arm tracking and no floating on desktop and mobile
+        run: python scripts/test_avatar_height_tracking.py --live-meshy
+      - name: Archive screenshots and tracking measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: meshy-production-verified
+          path: |
+            build/meshy-production-qa/
+            build/height-regression/
+          retention-days: 7
+          if-no-files-found: warn
