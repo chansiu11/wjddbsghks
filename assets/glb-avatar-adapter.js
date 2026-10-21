@@ -204,6 +204,21 @@ export function createGenericGLBAvatar(gltf, filename="Character.glb") {
     },
     getValue(preset){
       return expressionInputs[normalize(preset)]||0;
+    },
+    fadeToNeutral(delta=1/60){
+      if(!/meshy/i.test(filename))return;
+      const dt=Math.min(.08,Math.max(.001,Number(delta)||1/60));
+      const decay=Math.exp(-dt*10);
+      for(const mesh of morphMeshes){
+        for(let i=0;i<mesh.morphTargetInfluences.length;i++){
+          const v=mesh.morphTargetInfluences[i]*decay;
+          mesh.morphTargetInfluences[i]=v<.002?0:v;
+        }
+      }
+      for(const key of Object.keys(expressionInputs)){
+        const v=expressionInputs[key]*decay;
+        expressionInputs[key]=v<.002?0:v;
+      }
     }
   };
   return {
