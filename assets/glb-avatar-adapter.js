@@ -190,6 +190,7 @@ export function createGenericGLBAvatar(gltf, filename="Character.glb") {
     scene,
     meta:{title:filename.replace(/\.glb$/i,"")},
     isGenericGLB:true,
+    isMeshyAvatar:/meshy/i.test(filename),
     humanoid:{
       getBoneNode(name){return map[normalize(name)]||null},
       restPose:{hips:{position:[hip.position.x,hip.position.y,hip.position.z]}}
