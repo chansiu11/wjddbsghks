@@ -150,9 +150,10 @@ async def visit(browser,label,width,height):
     assert feet_dy<0.1,f"Face-only detection caused untracked feet to fly: {feet_dy}"
     assert head_dy<0.25,f"Face-only detection shifted the avatar head vertically: {head_dy}"
     assert neck_rotation_delta>0.03,"Face tracking did not animate the neck"
+    if initial["isMeshy"]:
+        assert arm_rotation_delta<0.06,f"Face-only tracking incorrectly raises or twists arms: {arm_rotation_delta}"
     if CANDIDATE and "meshy" in CANDIDATE.name.lower() or LIVE_MESHY:
         assert initial["isMeshy"],"Did not recognize Meshy avatar orientation"
-        assert arm_rotation_delta<0.06,f"Face-only tracking incorrectly raises or twists arms: {arm_rotation_delta}"
         assert abs(after["sceneRotation"])<0.001,"Meshy should face the camera at its neutral yaw"
     assert asset_status and any(r["status"]==200 for r in asset_status),"No model asset"
     assert not any("Character model import failed" in x for x in console),"GLB import error"
