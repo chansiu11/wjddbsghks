@@ -127,6 +127,48 @@ export function createGenericGLBAvatar(gltf, filename="Character.glb") {
       }
     }
   }
+  // Optional lightweight secondary motion for meshes with explicit hair / hem
+  // helper joints. It is deliberately inert for ordinary rigs (including VRM)
+  // and does not simulate the entire garment, which would require authored cloth.
+  const springNames=[
+    ["hair_spring",24,6.5,1.6],
+    ["cloth_front_l",15,5.4,1.1],
+    ["cloth_front_r",15,5.4,1.1]
+  ];
+  const springs=springNames.map(([name,stiffness,damping,inertia])=>{
+    const bone=bones.find(entry=>entry.clean===normalize(name))?.bone;
+    if(!bone||!bone.parent||!bone.quaternion)return null;
+    return {bone,rest:bone.quaternion.clone(),parent:bone.parent,
+      last:bone.parent.quaternion.clone(),vx:0,vz:0,angleX:0,angleZ:0,
+      stiffness,damping,inertia};
+  }).filter(Boolean);
+  function stepSpringBones(delta){
+    if(!springs.length||!Number.isFinite(delta))return;
+    // Clamp elapsed time when the app is backgrounded to avoid exploding
+    // spring integration, while preserving energy from small head movements.
+    const dt=Math.max(0.001,Math.min(delta,1/30));
+    for(const spring of springs){
+      const q=spring.parent.quaternion;
+      const diff=q.clone().multiply(spring.last.clone().invert());
+      spring.last.copy(q);
+      // Quaternion shortest arc, converted to a modest velocity impulse.
+      const sign=diff.w<0?-1:1;
+      spring.vx-=Math.max(-0.16,Math.min(0.16,2*diff.x*sign))*spring.inertia;
+      spring.vz-=Math.max(-0.16,Math.min(0.16,2*diff.z*sign))*spring.inertia;
+      const ax=-spring.stiffness*spring.angleX-spring.damping*spring.vx;
+      const az=-spring.stiffness*spring.angleZ-spring.damping*spring.vz;
+      spring.vx+=ax*dt;
+      spring.vz+=az*dt;
+      spring.angleX=Math.max(-0.24,Math.min(0.24,spring.angleX+spring.vx*dt));
+      spring.angleZ=Math.max(-0.20,Math.min(0.20,spring.angleZ+spring.vz*dt));
+      const qSwing=spring.rest.clone();
+      // Three.js quaternion method exists on every GLTFLoader Bone.
+      const eulerLike=spring.rest.clone().set(
+        Math.sin(spring.angleX/2),0,Math.sin(spring.angleZ/2),Math.cos(spring.angleX/2)*Math.cos(spring.angleZ/2)
+      ).normalize();
+      spring.bone.quaternion.copy(qSwing).multiply(eulerLike);
+    }
+  }
   const proxy={
     setValue(preset,value){
       const items=expressions[normalize(preset)];
@@ -154,7 +196,8 @@ export function createGenericGLBAvatar(gltf, filename="Character.glb") {
         this.thirdPersonOnlyLayer=thirdPersonOnlyLayer;
       }
     },
-    update(){},
+    update(delta){stepSpringBones(delta)},
+    secondaryMotion:{bones:springs.map(s=>s.bone.name),type:"damped-helper-bone"},
     dispose(){
       scene.traverse(node=>{
         if(!node.isMesh)return;
